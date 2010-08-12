@@ -1,0 +1,4 @@
+cron:
+- description: image capture
+  url: /tasks/poll_sources
+  schedule: every 1 minute
