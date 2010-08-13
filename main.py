@@ -9,56 +9,67 @@ from google.appengine.ext import db
 from datetime import datetime, timedelta
 import urllib
 import cgi
+import png
+
 
 # investigate python_precompiled
 # Pure Python PNG parser -- http://packages.python.org/pypng/png.html
 # Motion detection -- http://www.codeproject.com/KB/audio-video/Motion_Detection.aspx
 # PIL http://www.pythonware.com/library/pil/handbook/introduction.htm
-# http://code.google.com/apis/youtube/1.0/developers_guide_python.html#DirectUpload
+
+# YouTube upload -- http://code.google.com/apis/youtube/1.0/developers_guide_python.html#DirectUpload
+# YouTube upload -- http://code.google.com/apis/youtube/2.0/developers_guide_protocol_direct_uploading.html#Direct_uploading
+
+# sample cameras -- http://ipcctvsoft.blogspot.com/2010/07/list-of-ip-surveillance-cameras-found.html
 
 # ----------------------------------------------------------------------
 
 class CameraSource(db.Model):
-    title = db.StringProperty()
-    url = db.LinkProperty()
+    title = db.StringProperty(required=True)
+    url = db.LinkProperty(required=True)
     # username/password auth
-    poll_max_fps = db.IntegerProperty()
-    alert_max_fps = db.IntegerProperty()
+    poll_max_fps = db.IntegerProperty(default=1, required=True)
+    alert_max_fps = db.IntegerProperty(default=10, required=True)
     creation_time = db.DateTimeProperty(auto_now_add=True)
     last_edited = db.DateTimeProperty()
-    enabled = db.BooleanProperty()
-    deleted = db.BooleanProperty()
+    enabled = db.BooleanProperty(default=True,required=True)
+    deleted = db.BooleanProperty(default=False,required=True)
     # mode?  modetect, record
     # frames before/after event
+    num_secs_after = db.FloatProperty(default=2.0, required=True)
     # sensitivity
 
 
 class CameraEvent(db.Model):
-    camera_id = db.ReferenceProperty(CameraSource)
-    event_start = db.DateTimeProperty()
-    event_end = db.DateTimeProperty()
+    camera_id = db.ReferenceProperty(CameraSource, required=True)
+    event_start = db.DateTimeProperty(required=True)
+    event_end = db.DateTimeProperty(required=True)
     motion_rating = db.RatingProperty()
+    total_frames = db.IntegerProperty(default=0,required=True)
+    last_motion_time = db.DateTimeProperty()
     comments = db.StringProperty()
     category = db.CategoryProperty()
-    archived = db.BooleanProperty()
-    deleted = db.BooleanProperty()
-    viewed = db.BooleanProperty()
+    archived = db.BooleanProperty(default=False,required=True)
+    deleted = db.BooleanProperty(default=False,required=True)
+    viewed = db.BooleanProperty(default=False,required=True)
 
 
 class CameraFrame(db.Model):
-    camera_id = db.ReferenceProperty(CameraSource)
+    camera_id = db.ReferenceProperty(CameraSource, required=True)
     event_id = db.ReferenceProperty(CameraEvent)
-    image_time = db.DateTimeProperty()
-    full_size_image = db.BlobProperty()
+    image_time = db.DateTimeProperty(required=True)
+    full_size_image = db.BlobProperty(required=True)
 
 
 
 MAX_CAMERAS = 10
+MODETECT_IMAGE_SIZE = 100
 
 # ----------------------------------------------------------------------
 
 # This is the background handler that gets invoked to poll images for motion.
 class ImageFetcherTask(webapp.RequestHandler):
+
     def get(self):
         q = CameraSource.all()
         q.filter("enabled =",True).filter("deleted =",False)
@@ -67,42 +78,108 @@ class ImageFetcherTask(webapp.RequestHandler):
         # TODO: needs to keep looping for about a minute, honoring the poll_max_fps
         for cam in results:
             response = urlfetch.fetch(cam.url, payload=None, method=urlfetch.GET, headers={}, allow_truncated=False, follow_redirects=True, deadline=5)
+            capture_time = datetime.now()
 
             # TODO: check status code and content-type, handle exceptions
             #if response.status_code != 200:
 
-            # store in memcache
-            memcache.set("camera{%s}" % cam.key(), response.content)
+            # store the fully image in memcache
+            memcache.set("camera{%s}.lastimg_orig" % cam.key(), response.content)
 
-            # store in the database
-            s2 = CameraFrame()
-            s2.camera_id = cam.key()
-            s2.full_size_image = response.content
-            s2.image_time = datetime.now()
-            s2.put()
 
-            # pre-process for motion detection
-            #img = images.Image(image_data=imgdata)
-            #img.resize(width=100, height=100)
-            #img.im_feeling_lucky()
-            #thumbnail = img.execute_transforms(output_encoding=images.PNG)
+            # retrieve the last background image
+            lastimg_mopng = memcache.get("camera{%s}.lastimg_mopng" % cam.key())
+            if lastimg_mopng != None:
+                lastfloatdata = png.Reader(bytes=lastimg_mopng).asFloat()
+            else:
+                lastfloatdata = None
+
+
+            # process the new image for motion detection
+            img = images.Image(image_data=response.content)
+            img.resize(width=MODETECT_IMAGE_SIZE, height=MODETECT_IMAGE_SIZE)
+            img.im_feeling_lucky()
+            mopng = img.execute_transforms(output_encoding=images.PNG)
+            memcache.set("camera{%s}.lastimg_mopng" % cam.key(), mopng)
+            floatdata = png.Reader(bytes=mopng).asFloat()
+
+            # compute the image difference between lastfloatdata & floatdata
+            newdata = list()
+            for row in list(floatdata[2]):
+                newdata.append(list(row))
+
+            # TODO
+            motion_rating = 0
+            motion_found = False
+
+
+            # add to an existing event if needed
+            eventkey = memcache.get("camera{%s}.eventkey" % cam.key())
+            if eventkey is not None:
+                event = CameraEvent.get(db.Key(eventkey))
+
+                # store frame in the database
+                frame = CameraFrame(camera_id = cam.key(),
+                                    event_id = event.key(),
+                                    full_size_image = response.content,
+                                    image_time = capture_time)
+                frame.put()
+
+                # update the event in the database
+                if motion_rating > event.motion_rating:
+                    event.motion_rating = motion_rating
+                if motion_found:
+                    event.last_motion_time = capture_time
+                event.total_frames = event.total_frames + 1
+                event.event_end = capture_time
+                event.put()
+
+                # stop the event, if it's time
+                if (not motion_found) and (capture_time - event.last_motion_time).total_seconds() > cam.num_secs_after:
+                    memcache.delete("camera{%s}.eventkey" % cam.key())
+            elif motion_found:
+                # start a new event
+                event = CameraEvent(total_frames = 1,
+                                    event_start = capture_time,
+                                    event_end = capture_time,
+                                    motion_rating = motion_rating,
+                                    last_motion_time = capture_time,
+                                    camera_id = cam.key(),
+                                    viewed = False,
+                                    archived = False,
+                                    deleted = False)
+                event.put()
+
+                # store frame in the database
+                frame = CameraFrame(camera_id = cam.key(),
+                                    event_id = event.key(),
+                                    full_size_image = response.content,
+                                    image_time = capture_time)
+                frame.put()
+
+                # keep the event open.
+                memcache.set("camera{%s}.eventkey" % cam.key(), event.key())
+
+
 
         self.response.headers['Content-Type'] = 'text/html'
         self.response.out.write("done")
 
 
 
+
+
 class AddCameraSourceHandler(webapp.RequestHandler):
     def get(self):
-        cam = CameraSource()
-        cam.title = "My Camera"
-        #cam.url = "http://cowpad.dyn-o-saur.com:8080/xxxxx"
-        cam.url = "http://www.bovine.net/~jlawson/webcam/homecam.jpg"
-        cam.poll_max_fps = 1
-        cam.alert_max_fps = 10
-        cam.creation_time = datetime.now()
-        cam.enabled = True
-        cam.deleted = False
+        #url = "http://cowpad.dyn-o-saur.com:8080/xxxxx"
+        cam = CameraSource(title="My Camera",
+                           url="http://www.bovine.net/~jlawson/webcam/homecam.jpg",
+                           poll_max_fps = 1,
+                           alert_max_fps = 10,
+                           creation_time = datetime.now(),
+                           enabled = True,
+                           deleted = False,
+                           num_secs_after = 2.0)
         cam.put()
 
         self.response.out.write("added")
@@ -181,7 +258,7 @@ class LiveThumbHandler(webapp.RequestHandler):
             self.response.out.write("missing camera")
             return
 
-        imgdata = memcache.get("camera{%s}" % keyname)
+        imgdata = memcache.get("camera{%s}.lastimg_orig" % keyname)
         if imgdata is not None:
             img = images.Image(image_data=imgdata)
             img.resize(width=80, height=100)
@@ -196,6 +273,8 @@ class LiveThumbHandler(webapp.RequestHandler):
             return
             
 
+
+# http://www.jpegcameras.com/
 #class LiveThumbStreamHandler(webapp.RequestHandler):
 #    def get(self):
 #        keyname = self.request.get('camera')
@@ -214,6 +293,7 @@ class LiveThumbHandler(webapp.RequestHandler):
 #            self.response.headers['Content-Type'] = 'Content-type: multipart/x-mixed-replace;boundary=End'
 #            self.response.out.write('--End')
 #            self.response.out.write('Content-type: image/jpeg')
+#             Content-Length: 9290
 #            self.response.out.write(thumbnail)
 #            self.response.out.write('--End--')
 #            #TODO
@@ -242,7 +322,7 @@ def main():
                                           ('/camera/delete', DeleteCameraSourceHandler),
                                           ('/camera/trigger', ImageFetcherTask), 
                                           ('/camera/livethumb', LiveThumbHandler),
-                                          ('/tasks/poll_sources', ImageFetcherTask) ],
+                                          ('/tasks/poll_sources', ImageFetcherTask),
                                           ('/tasks/garbage_collector', GarbageCollectorTask) ],
                                          debug=True)
     util.run_wsgi_app(application)
