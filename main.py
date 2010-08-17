@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 
-from google.appengine.ext import webapp
-from google.appengine.ext.webapp import util
-from google.appengine.api import memcache
-from google.appengine.api import urlfetch 
-from google.appengine.api import images
-from google.appengine.ext import db
+from google.appengine.ext import webapp, db
+from google.appengine.ext.webapp import util, template
+from google.appengine.api import memcache, urlfetch, images
 from datetime import datetime, timedelta
+import os
 import urllib
 import cgi
 import png
@@ -70,6 +68,17 @@ MODETECT_IMAGE_SIZE = 100
 # This is the background handler that gets invoked to poll images for motion.
 class ImageFetcherTask(webapp.RequestHandler):
 
+    def detectMotion(prevImage, curImage):
+        if prevImage == None or curImage == None:
+            return 0
+
+        newdata = list()
+        for row in list(floatdata[2]):
+            newdata.append(list(row))
+
+        # TODO
+        return 0
+
     def get(self):
         q = CameraSource.all()
         q.filter("enabled =",True).filter("deleted =",False)
@@ -103,14 +112,10 @@ class ImageFetcherTask(webapp.RequestHandler):
             memcache.set("camera{%s}.lastimg_mopng" % cam.key(), mopng)
             floatdata = png.Reader(bytes=mopng).asFloat()
 
-            # compute the image difference between lastfloatdata & floatdata
-            newdata = list()
-            for row in list(floatdata[2]):
-                newdata.append(list(row))
 
-            # TODO
-            motion_rating = 0
-            motion_found = False
+            # compute the image difference between lastfloatdata & floatdata
+            motion_rating = detectMotion(lastfloatdata, floatdata)
+            motion_found = (motion_rating > 50)
 
 
             # add to an existing event if needed
@@ -217,36 +222,31 @@ class MainSummaryHandler(webapp.RequestHandler):
 
         results = q.fetch(MAX_CAMERAS)
 
-        #self.response.headers['Content-Type'] = 'text/html; charset=utf-8'
-        #self.response.out.write("<script src='http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js' type='text/javascript'></script>");
-        self.response.out.write("<table border=1>")
-        self.response.out.write("<tr><th>Title</th><th>Url</th><th>Thumbnail</th><th>Total</th><th>Today</th><th>Yesterday</th><th>This Week</th><th>This Month</th><th>Actions</th></tr>")
         for cam in results:
-            #cgi.escape
-            #urllib.quote_plus
-
             q2 = CameraFrame.all()
             q2.filter("camera_id =", cam.key())
-            total = q2.count()
+            cam.total = q2.count()
             q2.filter("image_time >=", datetime.now().replace(day=1,hour=0,minute=0)) 
-            thismonth = q2.count()
+            cam.thismonth = q2.count()
             startofweek = datetime.now().day - datetime.now().weekday() % 7
             q2.filter("image_time >=", datetime.now().replace(day=startofweek, hour=0, minute=0)) 
-            thisweek = q2.count()
+            cam.thisweek = q2.count()
             q2.filter("image_time >=", datetime.now().replace(hour=0,minute=0)) 
-            today = q2.count()
+            cam.today = q2.count()
 
             q2 = CameraFrame.all()
             q2.filter("camera_id =", cam.key())
             q2.filter("image_time >=", datetime.now().replace(hour=0,minute=0) - timedelta(days=1))
             q2.filter("image_time <", datetime.now().replace(hour=0,minute=0))
-            yesterday = q2.count()
+            cam.yesterday = q2.count()
 
-            self.response.out.write("<tr><td>%s</td><td><a href='%s'>link</a></td><td><img src='/camera/livethumb?camera=%s' width=80 height=100></td><td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%d</td><td><a href='/camera/edit?camera=%s'>[Edit]</a> <a href='/camera/delete?camera=%s'>[Delete]</a> <a href='/camera/trigger?camera=%s'>[Trigger]</a></td></tr>" % 
-                                    (cgi.escape(cam.title), cam.url, cam.key(), total, today, yesterday, thisweek, thismonth, cam.key(), cam.key(), cam.key()))
 
-        self.response.out.write("</table>")
-        self.response.out.write("<p><a href='/camera/add'>[Add new camera]</a></p>")
+        template_values = {
+            'camlist': results,
+            }
+
+        path = os.path.join(os.path.dirname(__file__), 'summary.html')
+        self.response.out.write(template.render(path, template_values))
 
 
 # Send back a scaled thumbnail of the last retrieved image from a camera.
