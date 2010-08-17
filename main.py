@@ -68,12 +68,12 @@ MODETECT_IMAGE_SIZE = 100
 # This is the background handler that gets invoked to poll images for motion.
 class ImageFetcherTask(webapp.RequestHandler):
 
-    def detectMotion(prevImage, curImage):
+    def detectMotion(self, prevImage, curImage):
         if prevImage == None or curImage == None:
             return 0
 
         newdata = list()
-        for row in list(floatdata[2]):
+        for row in list(curImage[2]):
             newdata.append(list(row))
 
         # TODO
@@ -114,7 +114,7 @@ class ImageFetcherTask(webapp.RequestHandler):
 
 
             # compute the image difference between lastfloatdata & floatdata
-            motion_rating = detectMotion(lastfloatdata, floatdata)
+            motion_rating = self.detectMotion(lastfloatdata, floatdata)
             motion_found = (motion_rating > 50)
 
 
