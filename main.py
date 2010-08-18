@@ -10,32 +10,22 @@ import cgi
 import png
 
 
-# investigate python_precompiled
-# Pure Python PNG parser -- http://packages.python.org/pypng/png.html
-# Motion detection -- http://www.codeproject.com/KB/audio-video/Motion_Detection.aspx
-# PIL http://www.pythonware.com/library/pil/handbook/introduction.htm
-
-# YouTube upload -- http://code.google.com/apis/youtube/1.0/developers_guide_python.html#DirectUpload
-# YouTube upload -- http://code.google.com/apis/youtube/2.0/developers_guide_protocol_direct_uploading.html#Direct_uploading
-
-# sample cameras -- http://ipcctvsoft.blogspot.com/2010/07/list-of-ip-surveillance-cameras-found.html
-
 # ----------------------------------------------------------------------
 
 class CameraSource(db.Model):
     title = db.StringProperty(required=True)
     url = db.LinkProperty(required=True)
-    # username/password auth
+    # TODO: username/password auth
     poll_max_fps = db.IntegerProperty(default=1, required=True)
     alert_max_fps = db.IntegerProperty(default=10, required=True)
     creation_time = db.DateTimeProperty(auto_now_add=True)
     last_edited = db.DateTimeProperty()
     enabled = db.BooleanProperty(default=True,required=True)
     deleted = db.BooleanProperty(default=False,required=True)
-    # mode?  modetect, record
-    # frames before/after event
+    # TODO: mode?  modetect, record
+    # TODO: frames before/after event
     num_secs_after = db.FloatProperty(default=2.0, required=True)
-    # sensitivity
+    # TODO: sensitivity
 
 
 class CameraEvent(db.Model):
@@ -70,14 +60,36 @@ class ImageFetcherTask(webapp.RequestHandler):
 
     def detectMotion(self, prevImage, curImage):
         if prevImage == None or curImage == None:
+            return 1
+        elif len(prevImage) != 4 or len(curImage) != 4:
+            return 2
+        elif prevImage[0] != curImage[0] or prevImage[1] != curImage[1]:
+            return 3
+
+        # compute the summed total of all pixel changes.
+        diffAmt = 0
+        try:
+            curRowIter, prevRowIter = iter(curImage[2]), iter(prevImage[2])
+            while True:
+                curRow, prevRow = curRowIter.next(), prevRowIter.next()
+                try:
+                    curColIter, prevColIter = iter(curRow), iter(prevRow)
+                    while True:
+                        curCol, prevCol = curColIter.next(), prevColIter.next()
+                        diffAmt = diffAmt + abs(curCol - prevCol)
+                except StopIteration:
+                    pass
+        except StopIteration:
+            pass
+
+        # scale the total into a rating between 0 and 100.
+        rating = 5 + 100.0 * diffAmt / (curImage[0] * curImage[1] * 3.0)
+        if rating > 100:
+            return 100
+        elif rating < 0:
             return 0
-
-        newdata = list()
-        for row in list(curImage[2]):
-            newdata.append(list(row))
-
-        # TODO
-        return 0
+        else:
+            return int(rating)
 
     def get(self):
         q = CameraSource.all()
@@ -115,11 +127,16 @@ class ImageFetcherTask(webapp.RequestHandler):
 
             # compute the image difference between lastfloatdata & floatdata
             motion_rating = self.detectMotion(lastfloatdata, floatdata)
+            self.response.out.write("motion_rating = %d<br>" % motion_rating)
             motion_found = (motion_rating > 50)
 
 
             # add to an existing event if needed
             eventkey = memcache.get("camera{%s}.eventkey" % cam.key())
+            if eventkey == "trigger":
+                motion_found = True
+                eventkey = None
+
             if eventkey is not None:
                 event = CameraEvent.get(db.Key(eventkey))
 
@@ -140,7 +157,9 @@ class ImageFetcherTask(webapp.RequestHandler):
                 event.put()
 
                 # stop the event, if it's time
-                if (not motion_found) and (capture_time - event.last_motion_time).total_seconds() > cam.num_secs_after:
+                td = (capture_time - event.last_motion_time)
+                total_seconds = (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 10**6
+                if (not motion_found) and (total_seconds > cam.num_secs_after):
                     memcache.delete("camera{%s}.eventkey" % cam.key())
             elif motion_found:
                 # start a new event
@@ -163,22 +182,31 @@ class ImageFetcherTask(webapp.RequestHandler):
                 frame.put()
 
                 # keep the event open.
-                memcache.set("camera{%s}.eventkey" % cam.key(), event.key())
+                memcache.set("camera{%s}.eventkey" % cam.key(), str(event.key()))
 
 
 
-        self.response.headers['Content-Type'] = 'text/html'
+        #self.response.headers['Content-Type'] = 'text/html'
         self.response.out.write("done")
 
 
+class TriggerCameraSourceHandler(webapp.RequestHandler):
+    def get(self):
+        keyname = self.request.get('camera')
+        if keyname is not None:
+            cam = CameraSource.get(db.Key(keyname))
+            memcache.set("camera{%s}.eventkey" % cam.key(), "trigger")
+            self.response.out.write("triggered!")
 
 
 
 class AddCameraSourceHandler(webapp.RequestHandler):
     def get(self):
-        #url = "http://cowpad.dyn-o-saur.com:8080/xxxxx"
-        cam = CameraSource(title="My Camera",
-                           url="http://www.bovine.net/~jlawson/webcam/homecam.jpg",
+        #newurl = "http://www.bovine.net/~jlawson/webcam/homecam.jpg"
+        newurl = "http://cam-fiddlers.athens.edu/axis-cgi/jpg/image.cgi"
+        #newurl = "http://cowpad.dyn-o-saur.com:8080/xxxxx"
+        cam = CameraSource(title="My Camera2",
+                           url=newurl,
                            poll_max_fps = 1,
                            alert_max_fps = 10,
                            creation_time = datetime.now(),
@@ -320,7 +348,7 @@ def main():
                                           ('/camera/add', AddCameraSourceHandler),
                                           ('/camera/edit', EditCameraSourceHandler),
                                           ('/camera/delete', DeleteCameraSourceHandler),
-                                          ('/camera/trigger', ImageFetcherTask), 
+                                          ('/camera/trigger', TriggerCameraSourceHandler), 
                                           ('/camera/livethumb', LiveThumbHandler),
                                           ('/tasks/poll_sources', ImageFetcherTask),
                                           ('/tasks/garbage_collector', GarbageCollectorTask) ],
