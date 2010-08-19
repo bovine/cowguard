@@ -5,12 +5,14 @@
 </head>
 <body bgcolor="#aabbcc">
 
+
 <table border=1>
 <tr>
-    <th>Title</th>
-    <th>Url</th>
+    <th>Name</th>
+    <th>Status</th>
+    <th>Source</th>
     <th>Thumbnail</th>
-    <th>Total</th>
+    <th>Events</th>
     <th>Today</th>
     <th>Yesterday</th>
     <th>This Week</th>
@@ -20,8 +22,9 @@
 {% for cam in camlist %}
 <tr>
     <td>{{ cam.title|escape }}</td>
+    <td>--</td>
     <td><a href="{{ cam.url }}">link</a></td>
-    <td><img src="/camera/livethumb?camera={{ cam.key }}" width="80" height="100" /></td>
+    <td><img src="/camera/livethumb?camera={{ cam.key }}" height="100" /></td>
     <td>{{ cam.total }}</td>
     <td>{{ cam.today }}</td>
     <td>{{ cam.yesterday }}</td>
