@@ -10,6 +10,11 @@ import cgi
 import png
 
 
+
+MAX_CAMERAS = 10
+MODETECT_IMAGE_SIZE = 100
+MODETECT_EWMA_ALPHA = 0.25
+
 # ----------------------------------------------------------------------
 
 class CameraSource(db.Model):
@@ -50,8 +55,6 @@ class CameraFrame(db.Model):
 
 
 
-MAX_CAMERAS = 10
-MODETECT_IMAGE_SIZE = 100
 
 # ----------------------------------------------------------------------
 
@@ -60,14 +63,14 @@ class ImageFetcherTask(webapp.RequestHandler):
 
     def detectMotion(self, prevImage, curImage):
         if prevImage == None or curImage == None:
-            return 1
+            return 0.1
         elif len(prevImage) != 4 or len(curImage) != 4:
-            return 2
+            return 0.2
         elif prevImage[0] != curImage[0] or prevImage[1] != curImage[1]:
-            return 3
+            return 0.3
 
         # compute the summed total of all pixel changes.
-        diffAmt = 0
+        diffAmt = 0.0
         try:
             curRowIter, prevRowIter = iter(curImage[2]), iter(prevImage[2])
             while True:
@@ -82,14 +85,9 @@ class ImageFetcherTask(webapp.RequestHandler):
         except StopIteration:
             pass
 
-        # scale the total into a rating between 0 and 100.
-        rating = 5 + 100.0 * diffAmt / (curImage[0] * curImage[1] * 3.0)
-        if rating > 100:
-            return 100
-        elif rating < 0:
-            return 0
-        else:
-            return int(rating)
+        # scale the total into a percentage of image change between 0 and 100.
+        return 100.0 * diffAmt / (curImage[0] * curImage[1] * 3.0)
+
 
     def get(self):
         q = CameraSource.all()
@@ -126,8 +124,30 @@ class ImageFetcherTask(webapp.RequestHandler):
 
 
             # compute the image difference between lastfloatdata & floatdata
-            motion_rating = self.detectMotion(lastfloatdata, floatdata)
-            self.response.out.write("motion_rating = %d<br>" % motion_rating)
+            motion_pct_change = self.detectMotion(lastfloatdata, floatdata)
+
+
+            # compute an exponentially-weighted moving average (EWMA).
+            ewma = memcache.get("camera{%s}.ewma" % cam.key())
+            if ewma != None:
+                ewma = MODETECT_EWMA_ALPHA * motion_pct_change + (1.0 - MODETECT_EWMA_ALPHA) * ewma
+            else:
+                ewma = motion_pct_change
+            memcache.set("camera{%s}.ewma" % cam.key(), ewma)
+
+
+            # use the EWMA to compute a score of the motion.
+            if ewma != 0:
+                motion_rating = abs(100.0 * (motion_pct_change - ewma) / ewma)
+            else:
+                motion_rating = 0
+
+            self.response.out.write("pct_change = %f, ewma = %f, motion_rating = %f<br>" % (motion_pct_change, ewma, motion_rating))
+            if motion_rating > 100.0:
+                motion_rating = 100
+            else:
+                motion_rating = int(round(motion_rating))
+
             motion_found = (motion_rating > 50)
 
 
