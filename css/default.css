@@ -1,0 +1,286 @@
+body {
+	background: #333333;
+	margin: 0px;
+	padding: 0px;
+	text-align: center;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	}
+
+*html body {
+	background-color: #595544;
+	}
+
+*html form	{
+	margin: 0px;
+	padding: 0px;
+	}
+
+img {
+	border: none;
+	margin: 0px;
+	padding: 0px;
+	}
+
+h1 {
+	margin-bottom: 10px;
+	}
+
+a, a:visited {
+	color: #b8b299;
+	text-decoration: none;
+	}
+	
+a:hover {
+	color: #b8b299;
+	text-decoration: underline;
+	}
+
+#content {
+	margin: 20px 10px;
+	}
+
+#mainContent {
+	width:100%;
+	padding: 0px;
+	margin: 0px;
+	float: left;
+	background-color: #FFF;
+	}
+	
+#mainContent p {
+	margin: 0px;
+	text-align: left;
+	font: Arial, Helvetica, sans-serif;
+	color: #333;
+	font-size: 12px;
+	}
+	
+#userInfo {
+	margin: 0px;
+	padding: 0px;
+	text-align: right;
+	font: Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	font-weight: bold;
+	color: #FFF;
+	}
+
+#userInfo ul {
+	margin: 0px;
+	margin-right: 20px;
+	padding: 0px;
+	white-space: nowrap;
+	}
+
+#userInfo li {
+	display: inline;
+	list-style-type: none;
+	}
+	
+#userInfo li a:link, #userInfo li a:visited {
+	color: #FFF;
+	text-decoration: none;
+	}
+	
+#userInfo li a:hover {
+	text-decoration: underline;
+	}
+
+#appname {
+    font: Arial, Helvetica, sans-serif;
+	font-size: 35px;
+	font-weight: bold;
+	color: #eeeeee;
+	text-align: left;
+	margin-top: 5px;
+	margin-left: 20px;
+    margin-bottom: 0px;
+}
+
+#logo {
+	font: Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	font-weight: bold;
+	color: #a4c3d6;
+	text-align: left;
+	margin-top: 5px;
+	margin-left: 20px;
+	}
+
+*html #logo {
+	margin-top: 3px;
+	}
+
+
+.text {
+		font: Arial, Helvetica, sans-serif;
+		font-size: 12px;
+		font-weight: bold;
+		}
+		
+.textBox {
+		border: 1px solid #b8b299;
+		width: 125px;
+		height: 20px;
+		margin-left: 10px;
+		}
+
+	
+/*####################################################### */
+/*##################  TABULAR DATA STYLES  ############## */
+/*####################################################### */
+
+#tblHead {
+	border-bottom: 4px solid #646150;
+	}
+
+tr.head th { 
+	background: url('/img/th-bg.png') no-repeat bottom right #FFF;
+	font-size: 12px; 
+	height: 29px; 
+	padding: 4px 9px 7px 5px; 
+	border-top: 1px solid #c5bfa5; 
+	}
+	
+tr.head th.first { 
+	border-left: 1px solid #c5bfa5; }
+	
+tr.head th.last { 
+	background-image: url('/img/th-bg-last.png'); 
+	background-position: bottom right; 
+	background-repeat: no-repeat; 
+	}
+	
+tr.even td { 
+	background-color: #e9f1f4; 
+	border-right: solid 1px white; 
+	font-size: 11px; 
+	color: #656565; 
+	font-weight: bold; 
+	padding: 5px 10px; 
+	}
+	
+tr.odd td { 
+	background-color: #FFF; 
+	font-size: 11px; 
+	color: #656565; 
+	font-weight: bold; 
+	padding: 5px 10px;   
+	}
+
+#pageContent { 
+	padding: 20px; 
+	background: url('/img/mainContentBG.png') repeat-x bottom left #FFF;
+	border: 2px solid #FFF;
+	
+}
+	
+#pageContent .head a.sort, #pageContent .head a.sort:visited { 
+	text-decoration: none; 
+	display: block; 
+	color: #656565;}		
+#pageContent .head a.sort:hover { text-decoration: underline;}
+
+#pageContent a, #pageContent a:visited { 
+	text-decoration: underline; 
+	color: #5d839a;}
+#pageContent a:hover {text-decoration: none;}
+
+
+.normal			{ font-weight: normal; }
+
+.statusGreen	{ color: green !important; font-weight: bold;}
+.statusRed		{ color: red !important; font-weight: bold;}
+.statusYellow	{ color: #e5b907 !important; font-weight: bold;}
+
+/* pagination styles */
+#pagination {
+	float: right;
+	margin: 10px;
+	font-size: 11px; 
+	height: 30px;
+	display: block;}
+	
+.pageBox {
+	color: white;
+	}
+
+#pagination UL
+{
+list-style: none;
+margin: 0;
+padding: 0;
+border: none;
+}
+
+#pagination LI
+{
+display: block;
+margin: 0;
+padding: 0;
+float: left;
+width: auto;
+}
+
+#pagination A
+{
+color: #444;
+display: block;
+text-decoration: none;
+margin: 0;
+padding: 2px 10px;
+}
+
+#pagination A.active:link, #pagination A.active:visited
+{
+position: relative;
+z-index: 102;
+text-decoration: none;
+}
+
+#pagination A:hover, #pagination A:active {text-decoration: underline; }
+
+/*####################################################### */
+/*##################  MODAL WINDOW STYLES  ############## */
+/*####################################################### */
+	
+#modContent {
+	background: #FFF;
+	text-align: left;
+	padding: 5px 10px 10px 10px;
+	margin: 0px;
+	}
+
+#modFooter {
+	background: url('/img/mainContentBG.png') repeat-x bottom left #FFF;
+	height: 39px;
+	width: 100%;
+	float: left;
+	position: absolute;
+	bottom: 0px;
+	left:0px;
+	margin: 0px;
+	padding: 0px;
+	text-align: left;
+	}
+	
+/*####################################################### */
+/*##################  FOOTER STYLES ##################### */
+/*####################################################### */
+
+#footer {
+	font: Arial, Helvetica, sans-serif;
+	font-size: 10px;
+	color: #a59e7f;
+	text-align: left;
+	margin-top: 10px;
+	padding-left: 10px;
+	}
+
+#footer p {
+	margin: 0px;
+	padding: 0px;
+	line-height: 12px;
+	}
+	}

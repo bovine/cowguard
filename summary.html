@@ -1,44 +1,52 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html>
 <head>
-    <title>Cow Guard: summary</title>
-    <script src='http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js' type='text/javascript'></script>
-</head>
-<body bgcolor="#aabbcc">
+    <title>Cow Guard - Camera Summary</title>
+    {% include "inc/header.html" %}
+    
+    <h1>Camera Summary</h1>   
+    
+    <div id="tblHead">
+    <table width="100%" border="0" cellspacing="0" cellpadding="5">
 
+    <thead>
+    <tr class="head">
+        <th class="first">Name</th>
+        <th>Status</th>
+        <th>Source</th>
+        <th>Thumbnail</th>
+        <th>Events</th>
+        <th>Today</th>
+        <th>Yesterday</th>
+        <th>This Week</th>
+        <th>This Month</th>
+        <th class="last">Actions</th>
+    </tr>
+    </thead>
 
-<table border=1>
-<tr>
-    <th>Name</th>
-    <th>Status</th>
-    <th>Source</th>
-    <th>Thumbnail</th>
-    <th>Events</th>
-    <th>Today</th>
-    <th>Yesterday</th>
-    <th>This Week</th>
-    <th>This Month</th>
-    <th>Actions</th>
-</tr>
-{% for cam in camlist %}
-<tr>
-    <td>{{ cam.title|escape }}</td>
-    <td>--</td>
-    <td><a href="{{ cam.url }}">link</a></td>
-    <td><img src="/camera/livethumb?camera={{ cam.key }}" height="100" /></td>
-    <td>{{ cam.total }}</td>
-    <td>{{ cam.today }}</td>
-    <td>{{ cam.yesterday }}</td>
-    <td>{{ cam.thisweek }}</td>
-    <td>{{ cam.thismonth }}</td>
-    <td><a href='/camera/edit?camera={{ cam.key }}'>[Edit]</a> 
-        <a href='/camera/delete?camera={{ cam.key }}'>[Delete]</a> 
-        <a href='/camera/trigger?camera={{ cam.key }}'>[Trigger]</a></td>
-</tr>
-{% endfor %}
-</table>
+    <tbody>
+    {% for cam in camlist %}
+    <tr class="{% cycle odd,even %}">
+        <td>{{ cam.title|escape }}</td>
+        <td>--</td>
+        <td><a href="{{ cam.url }}">link</a></td>
+        <td><img src="/camera/livethumb?camera={{ cam.key }}" height="100" /></td>
+        <td>{{ cam.total }}</td>
+        <td>{{ cam.today }}</td>
+        <td>{{ cam.yesterday }}</td>
+        <td>{{ cam.thisweek }}</td>
+        <td>{{ cam.thismonth }}</td>
+        <td><a href='/camera/edit?camera={{ cam.key }}'>[Edit]</a> 
+            <a href='/camera/delete?camera={{ cam.key }}'>[Delete]</a> 
+            <a href='/camera/trigger?camera={{ cam.key }}'>[Trigger]</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+    </div>
 
 <p><a href='/camera/add'>[Add new camera]</a></p>
 <p><a href='/tasks/poll_sources'>[Poll sources]</a></p>
 
-</body>
-</html>
+
+{% include "inc/footer.html" %}

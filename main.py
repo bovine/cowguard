@@ -2,7 +2,7 @@
 
 from google.appengine.ext import webapp, db
 from google.appengine.ext.webapp import util, template
-from google.appengine.api import memcache, urlfetch, images
+from google.appengine.api import memcache, urlfetch, images, users
 from datetime import datetime, timedelta
 import os
 import urllib
@@ -290,6 +290,8 @@ class MainSummaryHandler(webapp.RequestHandler):
 
 
         template_values = {
+            'user_name': users.get_current_user(),
+            'logout_url': users.create_logout_url('/'),
             'camlist': results,
             }
 
