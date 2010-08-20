@@ -1,0 +1,14 @@
+
+# investigate python_precompiled
+# Pure Python PNG parser -- http://packages.python.org/pypng/png.html
+# Motion detection -- http://www.codeproject.com/KB/audio-video/Motion_Detection.aspx
+# PIL http://www.pythonware.com/library/pil/handbook/introduction.htm
+
+# YouTube upload -- http://code.google.com/apis/youtube/1.0/developers_guide_python.html#DirectUpload
+# YouTube upload -- http://code.google.com/apis/youtube/2.0/developers_guide_protocol_direct_uploading.html#Direct_uploading
+
+# sample cameras -- http://ipcctvsoft.blogspot.com/2010/07/list-of-ip-surveillance-cameras-found.html
+
+
+
+/axis-cgi/jpg/image.cgi
