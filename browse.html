@@ -1,0 +1,35 @@
+{% include "inc/header.html" %}
+        
+    <div id="tblHead">
+    <table width="100%" border="0" cellspacing="0" cellpadding="5">
+
+    <thead>
+    <tr class="head">
+        <th class="first">Timestamp</th>
+        <th>Duration</th>
+        <th>Motion Score</th>
+        <th>Thumbnail</th>
+        <th>Comments</th>
+        <th class="last">Actions</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    {% for event in eventlist %}
+    <tr class="{% cycle odd,even %}">
+        <td>{{ event.event_start|escape }}</td>
+        <td>{{ event.duration_text }} ({{ event.total_frames }} frame{{ event.total_frames|pluralize }})</td>
+        <td>{{ event.motion_rating }}</td>
+        <td>....</td>
+        <td>{{ event.comments|escape }}</td>
+        <td><a href='/events/mjpeg?event={{ event.key }}'>[MJPEG]</a> 
+            <a href='/events/delete?event={{ event.key }}'>[Delete]</a> 
+            <a href='/events/archive?event={{ event.key }}'>[Archive]</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+    </div>
+
+
+{% include "inc/footer.html" %}

@@ -1,11 +1,5 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html>
-<head>
-    <title>Cow Guard - Camera Summary</title>
-    {% include "inc/header.html" %}
-    
-    <h1>Camera Summary</h1>   
-    
+{% include "inc/header.html" %}
+        
     <div id="tblHead">
     <table width="100%" border="0" cellspacing="0" cellpadding="5">
 
@@ -15,7 +9,7 @@
         <th>Status</th>
         <th>Source</th>
         <th>Thumbnail</th>
-        <th>Events</th>
+        <th>Events (Frames)</th>
         <th>Today</th>
         <th>Yesterday</th>
         <th>This Week</th>
@@ -31,11 +25,11 @@
         <td>--</td>
         <td><a href="{{ cam.url }}">link</a></td>
         <td><img src="/camera/livethumb?camera={{ cam.key }}" height="100" /></td>
-        <td>{{ cam.total }}</td>
-        <td>{{ cam.today }}</td>
-        <td>{{ cam.yesterday }}</td>
-        <td>{{ cam.thisweek }}</td>
-        <td>{{ cam.thismonth }}</td>
+        <td><a href="/events/browse?camera={{cam.key}}&period=all">{{ cam.etotal }} ({{ cam.ftotal }})</a></td>
+        <td><a href="/events/browse?camera={{cam.key}}&period=today">{{ cam.etoday }} ({{ cam.ftoday }})</a></td>
+        <td><a href="/events/browse?camera={{cam.key}}&period=yesterday">{{ cam.eyesterday }} ({{ cam.fyesterday }})</a></td>
+        <td><a href="/events/browse?camera={{cam.key}}&period=week">{{ cam.ethisweek }} ({{ cam.fthisweek }})</a></td>
+        <td><a href="/events/browse?camera={{cam.key}}&period=month">{{ cam.ethismonth }} ({{ cam.fthismonth }})</a></td>
         <td><a href='/camera/edit?camera={{ cam.key }}'>[Edit]</a> 
             <a href='/camera/delete?camera={{ cam.key }}'>[Delete]</a> 
             <a href='/camera/trigger?camera={{ cam.key }}'>[Trigger]</a></td>

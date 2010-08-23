@@ -16,6 +16,10 @@ def main():
                                           ('/camera/delete', handlers.DeleteCameraSourceHandler),
                                           ('/camera/trigger', handlers.TriggerCameraSourceHandler), 
                                           ('/camera/livethumb', handlers.LiveThumbHandler),
+                                          ('/events/browse', handlers.BrowseEventsHandler),
+                                          #('/events/delete', handlers.DeleteEventHandler),
+                                          #('/events/archive', handlers.ArchiveEventHandler),
+                                          #('/events/mjpeg', handlers.GetMjpegEventHandler),
                                           ('/tasks/poll_sources', handlers.ImageFetcherTask),
                                           ('/tasks/garbage_collector', handlers.GarbageCollectorTask) ],
                                          debug=True)

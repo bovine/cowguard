@@ -11,8 +11,14 @@ import png
 from schema import CameraSource, CameraEvent, CameraFrame
 
 
+# maximum number of enabled camera supported.
 MAX_CAMERAS = 10
+
+# image size (pixels) that all motion-detection images are scaled to.
 MODETECT_IMAGE_SIZE = 100
+
+# alpha factor used in the exponentially weighted moving average.
+# must be between 0.0 and 1.0, with higher values giving faster response.
 MODETECT_EWMA_ALPHA = 0.25
 
 
@@ -98,7 +104,7 @@ class ImageFetcherTask(webapp.RequestHandler):
 
 
             # use the EWMA to compute a score of the motion.
-            if ewma != 0:
+            if ewma != 0 and motion_pct_change != 0:
                 motion_rating = abs(100.0 * (motion_pct_change - ewma) / ewma)
             else:
                 motion_rating = 0
@@ -171,6 +177,8 @@ class ImageFetcherTask(webapp.RequestHandler):
         self.response.out.write("done")
 
 
+# ----------------------------------------------------------------------
+
 class TriggerCameraSourceHandler(webapp.RequestHandler):
     def get(self):
         keyname = self.request.get('camera')
@@ -179,6 +187,7 @@ class TriggerCameraSourceHandler(webapp.RequestHandler):
             memcache.set("camera{%s}.eventkey" % cam.key(), "trigger")
             self.response.out.write("triggered!")
 
+# ----------------------------------------------------------------------
 
 
 class AddCameraSourceHandler(webapp.RequestHandler):
@@ -198,11 +207,13 @@ class AddCameraSourceHandler(webapp.RequestHandler):
 
         self.response.out.write("added")
 
+# ----------------------------------------------------------------------
 
 class EditCameraSourceHandler(webapp.RequestHandler):
     def get(self):
         self.response.out.write("unimplemented")
 
+# ----------------------------------------------------------------------
 
 class DeleteCameraSourceHandler(webapp.RequestHandler):
     def get(self):
@@ -214,6 +225,7 @@ class DeleteCameraSourceHandler(webapp.RequestHandler):
 
         self.response.out.write("deleted")
 
+# ----------------------------------------------------------------------
 
 class GarbageCollectorTask(webapp.RequestHandler):
     def get(self):
@@ -221,6 +233,55 @@ class GarbageCollectorTask(webapp.RequestHandler):
         # Look for Cameraevents marked deleted
         self.response.out.write("unimplemented")
         
+# ----------------------------------------------------------------------
+
+
+class BrowseEventsHandler(webapp.RequestHandler):
+    def get(self):
+        keyname = self.request.get('camera')
+        if keyname is not None:
+            cam = CameraSource.get(db.Key(keyname))
+        else:
+            return
+
+        period = self.request.get('period')
+        q2 = CameraEvent.all()
+        q2.filter("camera_id =", cam.key())
+        if period == "today":
+            q2.filter("event_start >=", datetime.now().replace(hour=0,minute=0)) 
+        elif period == "yesterday":
+            q2.filter("event_start >=", datetime.now().replace(hour=0,minute=0) - timedelta(days=1))
+            q2.filter("event_start <", datetime.now().replace(hour=0,minute=0))
+        elif period == "week":
+            startofweek = datetime.now().day - datetime.now().weekday() % 7
+            q2.filter("event_start >=", datetime.now().replace(day=startofweek, hour=0, minute=0)) 
+        elif period == "month":
+            q2.filter("event_start >=", datetime.now().replace(day=1,hour=0,minute=0)) 
+        elif period == "all":
+            pass
+        else:
+            return
+
+        #cam.total = q2.count()
+        results = q2.fetch(1000)
+
+        for event in results:
+            event.duration_text = (event.event_end - event.event_start)
+
+
+        template_values = {
+            'pagetitle': 'Event Browser for %s' % cam.title,
+            'user_name': users.get_current_user(),
+            'logout_url': users.create_logout_url('/'),
+            'camera': cam,
+            'eventlist': results,
+            }
+
+        path = os.path.join(os.path.dirname(__file__), 'browse.html')
+        self.response.out.write(template.render(path, template_values))
+
+        
+# ----------------------------------------------------------------------
 
 
 # Display a HTML status table summarizing all cameras currently in the system and the number of recent events.
@@ -232,25 +293,43 @@ class MainSummaryHandler(webapp.RequestHandler):
         results = q.fetch(MAX_CAMERAS)
 
         for cam in results:
-            q2 = CameraFrame.all()
-            q2.filter("camera_id =", cam.key())
-            cam.total = q2.count()
-            q2.filter("image_time >=", datetime.now().replace(day=1,hour=0,minute=0)) 
-            cam.thismonth = q2.count()
-            startofweek = datetime.now().day - datetime.now().weekday() % 7
-            q2.filter("image_time >=", datetime.now().replace(day=startofweek, hour=0, minute=0)) 
-            cam.thisweek = q2.count()
-            q2.filter("image_time >=", datetime.now().replace(hour=0,minute=0)) 
-            cam.today = q2.count()
+            qf = CameraFrame.all()            
+            qf.filter("camera_id =", cam.key())
+            qe = CameraEvent.all()
+            qe.filter("camera_id =", cam.key())
+            cam.ftotal = qf.count()
+            cam.etotal = qe.count()
 
-            q2 = CameraFrame.all()
-            q2.filter("camera_id =", cam.key())
-            q2.filter("image_time >=", datetime.now().replace(hour=0,minute=0) - timedelta(days=1))
-            q2.filter("image_time <", datetime.now().replace(hour=0,minute=0))
-            cam.yesterday = q2.count()
+            qf.filter("image_time >=", datetime.now().replace(day=1,hour=0,minute=0)) 
+            qe.filter("event_start >=", datetime.now().replace(day=1,hour=0,minute=0)) 
+            cam.fthismonth = qf.count()
+            cam.ethismonth = qe.count()
+
+            startofweek = datetime.now().day - datetime.now().weekday() % 7
+            qf.filter("image_time >=", datetime.now().replace(day=startofweek, hour=0, minute=0)) 
+            qe.filter("event_start >=", datetime.now().replace(day=startofweek, hour=0, minute=0)) 
+            cam.fthisweek = qf.count()
+            cam.ethisweek = qe.count()
+
+            qf.filter("image_time >=", datetime.now().replace(hour=0,minute=0)) 
+            qe.filter("event_start >=", datetime.now().replace(hour=0,minute=0)) 
+            cam.ftoday = qf.count()
+            cam.etoday = qe.count()
+
+            qf = CameraFrame.all()
+            qf.filter("camera_id =", cam.key())
+            qf.filter("image_time >=", datetime.now().replace(hour=0,minute=0) - timedelta(days=1))
+            qf.filter("image_time <", datetime.now().replace(hour=0,minute=0))
+            qe = CameraEvent.all()
+            qe.filter("camera_id =", cam.key())
+            qe.filter("event_start >=", datetime.now().replace(hour=0,minute=0) - timedelta(days=1))
+            qe.filter("event_start <", datetime.now().replace(hour=0,minute=0))
+            cam.fyesterday = qf.count()
+            cam.eyesterday = qe.count()
 
 
         template_values = {
+            'pagetitle': 'Camera Summary',
             'user_name': users.get_current_user(),
             'logout_url': users.create_logout_url('/'),
             'camlist': results,
@@ -259,6 +338,7 @@ class MainSummaryHandler(webapp.RequestHandler):
         path = os.path.join(os.path.dirname(__file__), 'summary.html')
         self.response.out.write(template.render(path, template_values))
 
+# ----------------------------------------------------------------------
 
 # Send back a scaled thumbnail of the last retrieved image from a camera.
 class LiveThumbHandler(webapp.RequestHandler):
@@ -283,7 +363,9 @@ class LiveThumbHandler(webapp.RequestHandler):
             self.response.out.write("not found")
             return
             
+# ----------------------------------------------------------------------
 
+# TOOD: It doesn't seem like there is any way to do this type of pushed image updating in App Engine?
 
 # http://www.jpegcameras.com/
 #class LiveThumbStreamHandler(webapp.RequestHandler):
@@ -315,6 +397,7 @@ class LiveThumbHandler(webapp.RequestHandler):
 
 
 
+# ----------------------------------------------------------------------
 
 
 class MainHandler(webapp.RequestHandler):
