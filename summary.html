@@ -1,5 +1,108 @@
 {% include "inc/header.html" %}
-        
+
+<style type="text/css">
+    fieldset th { text-align:right; white-space:nowrap;}
+    fieldset td { text-align:left; white-space:nowrap; }
+</style>
+<script type="text/javascript">
+	$(function() {
+		
+		var cam_name = $("#cam_name"),
+            cam_url = $("#cam_url"),
+            cam_enabled = $("#cam_enabled"),
+            cam_poll_max_fps = $("#cam_poll_max_fps"),
+            cam_alert_max_fps = $("#cam_alert_max_fps"),
+            cam_num_secs_after = $("#cam_num_secs_after");
+
+        var allFields = $([]).add(cam_name).add(cam_url).add(cam_poll_max_fps).add(cam_alert_max_fps).add(cam_num_secs_after);
+        var tips = $(".validateTips");
+
+		function updateTips(t) {
+			tips
+				.text(t)
+				.addClass('ui-state-highlight');
+			setTimeout(function() {
+				tips.removeClass('ui-state-highlight', 1500);
+			}, 500);
+		}
+
+		function checkLength(o,n,min,max) {
+
+			if ( o.val().length > max || o.val().length < min ) {
+				o.addClass('ui-state-error');
+				updateTips("Length of " + n + " must be between "+min+" and "+max+".");
+				return false;
+			} else {
+				return true;
+			}
+
+		}
+
+		function checkRegexp(o,regexp,n) {
+
+			if ( !( regexp.test( o.val() ) ) ) {
+				o.addClass('ui-state-error');
+				updateTips(n);
+				return false;
+			} else {
+				return true;
+			}
+
+		}
+		
+		$("#dialog-form").dialog({
+			autoOpen: false,
+			height: 400,
+			width: 550,
+			modal: true,
+			buttons: {
+				'Add new camera source': function() {
+					var bValid = true;
+					allFields.removeClass('ui-state-error');
+
+					//bValid = bValid && checkLength(name,"username",3,16);
+					//bValid = bValid && checkLength(email,"email",6,80);
+					//bValid = bValid && checkLength(password,"password",5,16);
+					//bValid = bValid && checkRegexp(name,/^[a-z]([0-9a-z_])+$/i,"Username may consist of a-z, 0-9, underscores, begin with a letter.");
+					//bValid = bValid && checkRegexp(password,/^([0-9a-zA-Z])+$/,"Password field only allow : a-z 0-9");
+					
+					if (bValid) {
+                        // Success
+                        $.post("/camera/add", 
+                                { name: cam_name.val(),
+                                  url: cam_url.val(),
+                                  enabled: cam_enabled.val(),
+                                  poll_max_fps: cam_poll_max_fps.val(),
+                                  alert_max_fps: cam_alert_max_fps.val(),
+                                  num_secs_after: cam_num_secs_after.val() },
+                               function(data) {
+                                  //$('.result').html(data);
+                                  alert(data);
+                               });
+
+						//$(this).dialog('close');
+					}
+				},
+				Cancel: function() {
+					$(this).dialog('close');
+				}
+			},
+			close: function() {
+				allFields.val('').removeClass('ui-state-error');
+			}
+		});
+		
+		
+		
+		$('#add_camera_button')
+			.click(function() {
+				$('#dialog-form').dialog('open');
+			});
+
+	});
+</script>
+
+
     <div id="tblHead">
     <table width="100%" border="0" cellspacing="0" cellpadding="5">
 
@@ -7,13 +110,13 @@
     <tr class="head">
         <th class="first">Name</th>
         <th>Status</th>
-        <th>Source</th>
+        <th>Source URL</th>
         <th>Thumbnail</th>
-        <th>Events (Frames)</th>
-        <th>Today</th>
-        <th>Yesterday</th>
-        <th>This Week</th>
-        <th>This Month</th>
+        <th title="Events (Frames)">Total</th>
+        <th title="Events (Frames)">Today</th>
+        <th title="Events (Frames)">Yesterday</th>
+        <th title="Events (Frames)">This Week</th>
+        <th title="Events (Frames)">This Month</th>
         <th class="last">Actions</th>
     </tr>
     </thead>
@@ -21,8 +124,8 @@
     <tbody>
     {% for cam in camlist %}
     <tr class="{% cycle odd,even %}">
-        <td>{{ cam.title|escape }}</td>
-        <td>--</td>
+        <td>{{ cam.name|escape }}</td>
+        <td>{{ cam.status_text }}</td>
         <td><a href="{{ cam.url }}">link</a></td>
         <td><img src="/camera/livethumb?camera={{ cam.key }}" height="100" /></td>
         <td><a href="/events/browse?camera={{cam.key}}&period=all">{{ cam.etotal }} ({{ cam.ftotal }})</a></td>
@@ -39,7 +142,46 @@
     </table>
     </div>
 
-<p><a href='/camera/add'>[Add new camera]</a></p>
+
+<div id="dialog-form" title="Add new camera source">
+	<p class="validateTips">All form fields are required.</p>
+	<form><center>
+	<fieldset><legend>Basic information</legend>
+        <table>
+        <tr>
+            <th><label for="cam_name">Name:</label></th>
+		    <td><input type="text" name="cam_name" id="cam_name" class="ui-widget-content ui-corner-all" /></td>
+        </tr>
+	    <tr>
+            <th><label for="cam_url">Source URL:</label></th>
+		    <td><input type="text" name="cam_url" id="cam_url" class="ui-widget-content ui-corner-all" size="40" /></td>
+        </tr>
+        <tr>
+            <th><input type="checkbox" name="cam_enabled" id="cam_enabled" class="ui-widget-content ui-corner-all" /><label for="cam_enabled">Enabled</label></th>
+        </tr>
+        </table>
+    </fieldset>
+    <fieldset><legend>Performance tuning</legend>
+        <table>
+	    <tr>
+            <th><label for="cam_poll_max_fps">Maximum Frame Rate (normal polling):</label></th>
+		    <td><input type="text" name="cam_poll_max_fps" id="cam_poll_max_fps" class="ui-widget-content ui-corner-all" size="5" /> fps</td>
+        </tr>
+	    <tr>
+            <th><label for="cam_alert_max_fps">Maximum Frame Rate (alert polling):</label></th>
+		    <td><input type="text" name="cam_alert_max_fps" id="cam_alert_max_fps" class="ui-widget-content ui-corner-all" size="5" /> fps</td>
+        </tr>
+	    <tr>
+            <th><label for="cam_num_secs_after">Event duration after alert:</label></th>
+		    <td><input type="text" name="cam_num_secs_after" id="cam_num_secs_after" value="" class="ui-widget-content ui-corner-all" size="5" /> secs</td>
+        </tr>
+        </table>
+	</fieldset></center>
+	</form>
+</div>
+
+
+<p><button id="add_camera_button">Add new camera source</button></p>
 <p><a href='/tasks/poll_sources'>[Poll sources]</a></p>
 
 

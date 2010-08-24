@@ -191,21 +191,25 @@ class TriggerCameraSourceHandler(webapp.RequestHandler):
 
 
 class AddCameraSourceHandler(webapp.RequestHandler):
-    def get(self):
-        #newurl = "http://www.bovine.net/~jlawson/webcam/homecam.jpg"
-        newurl = "http://cam-fiddlers.athens.edu/axis-cgi/jpg/image.cgi"
-        #newurl = "http://cowpad.dyn-o-saur.com:8080/xxxxx"
-        cam = CameraSource(title="My Camera2",
-                           url=newurl,
-                           poll_max_fps = 1,
-                           alert_max_fps = 10,
+    def post(self):
+        cam_name = self.request.get('name')
+        cam_url = self.request.get('url')
+        cam_enabled = bool(self.request.get('enabled'))
+        cam_poll_max_fps = int(self.request.get('poll_max_fps'))
+        cam_alert_max_fps = int(self.request.get('alert_max_fps'))
+        cam_num_secs_after = float(self.request.get('num_secs_after'))
+
+        cam = CameraSource(name=cam_name,
+                           url=cam_url,
+                           poll_max_fps = cam_poll_max_fps,
+                           alert_max_fps = cam_alert_max_fps,
                            creation_time = datetime.now(),
-                           enabled = True,
+                           enabled = cam_enabled,
                            deleted = False,
-                           num_secs_after = 2.0)
+                           num_secs_after = cam_num_secs_after)
         cam.put()
 
-        self.response.out.write("added")
+        self.response.out.write("added=%s" % cam.key())
 
 # ----------------------------------------------------------------------
 
@@ -270,7 +274,7 @@ class BrowseEventsHandler(webapp.RequestHandler):
 
 
         template_values = {
-            'pagetitle': 'Event Browser for %s' % cam.title,
+            'pagetitle': 'Event Browser for %s' % cam.name,
             'user_name': users.get_current_user(),
             'logout_url': users.create_logout_url('/'),
             'camera': cam,
@@ -293,6 +297,11 @@ class MainSummaryHandler(webapp.RequestHandler):
         results = q.fetch(MAX_CAMERAS)
 
         for cam in results:
+
+            cam.status_text = "---"
+            # TODO: cam.enabled, cam.last_poll_time, cam.last_poll_result
+
+
             qf = CameraFrame.all()            
             qf.filter("camera_id =", cam.key())
             qe = CameraEvent.all()

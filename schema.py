@@ -4,7 +4,7 @@ from google.appengine.ext import db
 
 
 class CameraSource(db.Model):
-    title = db.StringProperty(required=True)
+    name = db.StringProperty(required=True)
     url = db.LinkProperty(required=True)
     # TODO: username/password auth
     poll_max_fps = db.IntegerProperty(default=1, required=True)
@@ -17,6 +17,7 @@ class CameraSource(db.Model):
     # TODO: frames before/after event
     num_secs_after = db.FloatProperty(default=2.0, required=True)
     # TODO: sensitivity
+    # TODO: last_poll_time, last_poll_result
 
 
 class CameraEvent(db.Model):
@@ -38,4 +39,5 @@ class CameraFrame(db.Model):
     event_id = db.ReferenceProperty(CameraEvent)
     image_time = db.DateTimeProperty(required=True)
     full_size_image = db.BlobProperty(required=True)
+    #full_size_image = blobstore.BlobReferenceProperty(required=True)
 
