@@ -194,7 +194,7 @@ class AddCameraSourceHandler(webapp.RequestHandler):
     def post(self):
         cam_name = self.request.get('name')
         cam_url = self.request.get('url')
-        cam_enabled = bool(self.request.get('enabled'))
+        cam_enabled = bool(int(self.request.get('enabled')))
         cam_poll_max_fps = int(self.request.get('poll_max_fps'))
         cam_alert_max_fps = int(self.request.get('alert_max_fps'))
         cam_num_secs_after = float(self.request.get('num_secs_after'))
@@ -223,6 +223,7 @@ class EditCameraSourceHandler(webapp.RequestHandler):
         if cmd == 'get':
             self.response.headers['Content-Type'] = 'text/json'
             self.response.out.write("{")
+            self.response.out.write(' "key": "%s",' % cam.key())
             self.response.out.write(' "name": "%s",' % cam.name)
             self.response.out.write(' "url": "%s",' % cam.url)
             self.response.out.write(' "enabled": %d,' % cam.enabled)
@@ -234,11 +235,12 @@ class EditCameraSourceHandler(webapp.RequestHandler):
         elif cmd == 'save':
             cam.name = self.request.get('name')
             cam.url = self.request.get('url')
-            cam.enabled = bool(self.request.get('enabled'))
+            cam.enabled = bool(int(self.request.get('enabled')))
             cam.poll_max_fps = int(self.request.get('poll_max_fps'))
             cam.alert_max_fps = int(self.request.get('alert_max_fps'))
             cam.num_secs_after = float(self.request.get('num_secs_after'))
-            cmd.put()
+            cam.put()
+            self.response.out.write("success")
 
         else:
             self.error(500)

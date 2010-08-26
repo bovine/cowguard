@@ -8,7 +8,7 @@ $(function() {
         cam_alert_max_fps = $("#cam_alert_max_fps"),
         cam_num_secs_after = $("#cam_num_secs_after");
 
-    var allFields = $([]).add(cam_key).add(cam_name).add(cam_url).add(cam_poll_max_fps).add(cam_alert_max_fps).add(cam_num_secs_after);
+    var allFields = $([]).add(cam_name).add(cam_url).add(cam_poll_max_fps).add(cam_alert_max_fps).add(cam_num_secs_after);
     var tips = $(".validateTips");
 
 	function updateTips(t) {
@@ -75,14 +75,13 @@ $(function() {
                                     cmd: 'save',
                                     name: cam_name.val(),
                                     url: cam_url.val(),
-                                    enabled: cam_enabled.val(),
+                                    enabled: (cam_enabled.attr('checked') ? 1 : 0),
                                     poll_max_fps: cam_poll_max_fps.val(),
                                     alert_max_fps: cam_alert_max_fps.val(),
                                     num_secs_after: cam_num_secs_after.val() },
                                 function(data) {
-                                    //$('.result').html(data);
                                     alert(data);
-                                    // TODO: force page refresh.
+                                    location.reload();
                                 });
 
 
@@ -91,14 +90,13 @@ $(function() {
                         $.post("/camera/add", 
                                 {   name: cam_name.val(),
                                     url: cam_url.val(),
-                                    enabled: cam_enabled.val(),
+                                    enabled: (cam_enabled.attr('checked') ? 1 : 0),
                                     poll_max_fps: cam_poll_max_fps.val(),
                                     alert_max_fps: cam_alert_max_fps.val(),
                                     num_secs_after: cam_num_secs_after.val() },
                                 function(data) {
-                                    //$('.result').html(data);
                                     alert(data);
-                                    // TODO: force page refresh
+                                    location.reload();
                                 });
                      }
 
@@ -123,32 +121,13 @@ $(function() {
                 .dialog("enable")
                 .dialog('open');
 		});
-/*
-    function editCameraButton(camkey) {
-        $.post("/camera/edit", 
-                { camera: camkey,
-                  cmd: 'get' },
-                function(data) {
-                    //alert(data);
-                    cam_key.val("xxxx");
-                    cam_name.val("xxxx");
-                    cam_url.val("xxxx");
-                    cam_enabled.val("xxxx");
-                    cam_poll_max_fps.val("xxxx");
-                    cam_alert_max_fps.val("xxxx");
-                    cam_num_secs_after.val("xxxx");
 
-                    $("#dialog-form")
-                        .dialog('option', 'title', 'Edit camera source')
-                        .dialog("enable")
-                        .dialog('open');
-                }, 'json');
-    }
 
     $("#dialog-confirm").dialog({
         autoOpen: false,
 		resizable: false,
-		height:140,
+		height:240,
+        width: 300,
 		modal: true,
         buttons: {
 			'Delete': function() {
@@ -158,9 +137,8 @@ $(function() {
                 $.post("/camera/delete", 
                         { camera: cam_key.val() },
                         function(data) {
-                            //alert(data);
-                            $(this).dialog('close');
-                            // TODO: refresh page
+                            alert(data);
+                            location.reload();
                         });
 			},
 			'Cancel': function() {
@@ -168,16 +146,37 @@ $(function() {
 			}
 		}
     });
-*/
 
 
 
 });
 
+function editCameraButton(camkey) {
+    $('#cam_key').val(camkey);
+    $.post("/camera/edit", 
+            { camera: camkey, cmd: 'get' },
+            function(data) {
+                if ($('#cam_key').val() != data.key) {
+                    alert("Unexpected server response.");
+                    return;
+                }
+                $('#cam_name').val(data.name);
+                $('#cam_url').val(data.url);
+                $('#cam_enabled').attr('checked', data.enabled != 0);
+                $('#cam_poll_max_fps').val(data.poll_max_fps);
+                $('#cam_alert_max_fps').val(data.alert_max_fps);
+                $('#cam_num_secs_after').val(data.num_secs_after);
 
-    function deleteCameraButton(camkey) {
-        alert("Moo");
-        //cam_key.val(camkey);
-        //$("#dialog-confirm").dialog("open");
-    }
+                $("#dialog-form")
+                    .dialog('option', 'title', 'Edit camera source')
+                    .dialog("enable")
+                    .dialog('open');
+            }, 'json');
+}
+
+
+function deleteCameraButton(camkey) {
+    $('#cam_key').val(camkey);
+    $("#dialog-confirm").dialog("open");
+}
 
