@@ -1,108 +1,17 @@
-{% include "inc/header.html" %}
+{% extends "inc/base.html" %}
 
+{% block title %}Camera Summary{% endblock %}
+{% block title2 %}Camera Summary{% endblock %}
+
+{% block extra_head %}
 <style type="text/css">
     fieldset th { text-align:right; white-space:nowrap;}
     fieldset td { text-align:left; white-space:nowrap; }
 </style>
-<script type="text/javascript">
-	$(function() {
-		
-		var cam_name = $("#cam_name"),
-            cam_url = $("#cam_url"),
-            cam_enabled = $("#cam_enabled"),
-            cam_poll_max_fps = $("#cam_poll_max_fps"),
-            cam_alert_max_fps = $("#cam_alert_max_fps"),
-            cam_num_secs_after = $("#cam_num_secs_after");
+<script src="/js/summary.js" type="text/javascript"></script>
+{% endblock %}
 
-        var allFields = $([]).add(cam_name).add(cam_url).add(cam_poll_max_fps).add(cam_alert_max_fps).add(cam_num_secs_after);
-        var tips = $(".validateTips");
-
-		function updateTips(t) {
-			tips
-				.text(t)
-				.addClass('ui-state-highlight');
-			setTimeout(function() {
-				tips.removeClass('ui-state-highlight', 1500);
-			}, 500);
-		}
-
-		function checkLength(o,n,min,max) {
-
-			if ( o.val().length > max || o.val().length < min ) {
-				o.addClass('ui-state-error');
-				updateTips("Length of " + n + " must be between "+min+" and "+max+".");
-				return false;
-			} else {
-				return true;
-			}
-
-		}
-
-		function checkRegexp(o,regexp,n) {
-
-			if ( !( regexp.test( o.val() ) ) ) {
-				o.addClass('ui-state-error');
-				updateTips(n);
-				return false;
-			} else {
-				return true;
-			}
-
-		}
-		
-		$("#dialog-form").dialog({
-			autoOpen: false,
-			height: 400,
-			width: 550,
-			modal: true,
-			buttons: {
-				'Add new camera source': function() {
-					var bValid = true;
-					allFields.removeClass('ui-state-error');
-
-					//bValid = bValid && checkLength(name,"username",3,16);
-					//bValid = bValid && checkLength(email,"email",6,80);
-					//bValid = bValid && checkLength(password,"password",5,16);
-					//bValid = bValid && checkRegexp(name,/^[a-z]([0-9a-z_])+$/i,"Username may consist of a-z, 0-9, underscores, begin with a letter.");
-					//bValid = bValid && checkRegexp(password,/^([0-9a-zA-Z])+$/,"Password field only allow : a-z 0-9");
-					
-					if (bValid) {
-                        // Success
-                        $.post("/camera/add", 
-                                { name: cam_name.val(),
-                                  url: cam_url.val(),
-                                  enabled: cam_enabled.val(),
-                                  poll_max_fps: cam_poll_max_fps.val(),
-                                  alert_max_fps: cam_alert_max_fps.val(),
-                                  num_secs_after: cam_num_secs_after.val() },
-                               function(data) {
-                                  //$('.result').html(data);
-                                  alert(data);
-                               });
-
-						//$(this).dialog('close');
-					}
-				},
-				Cancel: function() {
-					$(this).dialog('close');
-				}
-			},
-			close: function() {
-				allFields.val('').removeClass('ui-state-error');
-			}
-		});
-		
-		
-		
-		$('#add_camera_button')
-			.click(function() {
-				$('#dialog-form').dialog('open');
-			});
-
-	});
-</script>
-
-
+{% block content %}
     <div id="tblHead">
     <table width="100%" border="0" cellspacing="0" cellpadding="5">
 
@@ -133,8 +42,8 @@
         <td><a href="/events/browse?camera={{cam.key}}&period=yesterday">{{ cam.eyesterday }} ({{ cam.fyesterday }})</a></td>
         <td><a href="/events/browse?camera={{cam.key}}&period=week">{{ cam.ethisweek }} ({{ cam.fthisweek }})</a></td>
         <td><a href="/events/browse?camera={{cam.key}}&period=month">{{ cam.ethismonth }} ({{ cam.fthismonth }})</a></td>
-        <td><a href='/camera/edit?camera={{ cam.key }}'>[Edit]</a> 
-            <a href='/camera/delete?camera={{ cam.key }}'>[Delete]</a> 
+        <td><a href="javascript:editCameraButton('{{ cam.key|escape }}'">[Edit]</a> 
+            <a href="javascript:deleteCameraButton('{{ cam.key|escape }}')">[Delete]</a> 
             <a href='/camera/trigger?camera={{ cam.key }}'>[Trigger]</a></td>
     </tr>
     {% endfor %}
@@ -143,9 +52,10 @@
     </div>
 
 
-<div id="dialog-form" title="Add new camera source">
+<div id="dialog-form" title="Untitled dialog">
 	<p class="validateTips">All form fields are required.</p>
 	<form><center>
+    <input type="hidden" name="cam_key" id="cam_key" value="" />
 	<fieldset><legend>Basic information</legend>
         <table>
         <tr>
@@ -180,9 +90,14 @@
 	</form>
 </div>
 
+<div id="dialog-confirm" title="Delete this camera source?">
+	<p>
+        <span class="ui-icon ui-icon-alert" style="float:left; margin:0 7px 20px 0;"></span>
+        This camera and all of its events and images will be permanently deleted and cannot be recovered. Are you sure?
+    </p>
+</div>
 
 <p><button id="add_camera_button">Add new camera source</button></p>
 <p><a href='/tasks/poll_sources'>[Poll sources]</a></p>
 
-
-{% include "inc/footer.html" %}
+{% endblock %}
