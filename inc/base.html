@@ -1,7 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html>
     <head>
-        <title>Cow Guard - {{pagetitle|escape}}</title>
+        <title>Cow Guard: {% block title %}Subtitle{% endblock %}</title>
 
         <style type="text/css" media="all">@import "/css/default.css";</style>
         <style type="text/css" media="all">@import "http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.4/themes/base/jquery-ui.css";</style>
@@ -9,6 +9,8 @@
         <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js" type="text/javascript"></script>
         <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.4/jquery-ui.min.js" type="text/javascript"></script>
         <script src="/js/common.js" type="text/javascript"></script>
+        {% block extra_head %}
+        {% endblock %}
     </head>
 <body>
     <div id="content">        
@@ -17,7 +19,7 @@
     <tr valign="top" align="left">
         <td width="10" height="83"><img src="/img/leftcap.gif" width="10" height="83" alt="" /></td>
         <td style="background-image:url('/img/bnr-top-bg.gif'); background-repeat: repeat-x;" height="83" width="100%">
-            <p id="appname">Cow Guard</p>
+            <p id="appname">Cow Guard: <small>{% block title2 %}Subtitle{% endblock %}</small></p>
             <p id="logo">Networked Security Camera Monitor</p>
         </td>
 		<td width="58" height="83"><img src="/img/top-curve.gif" width="58" height="83" alt="" /></td>
@@ -36,5 +38,26 @@
         <td colspan="4">
             <div id="mainContent">
                 <div id="pageContent">
-                    <h1>{{ pagetitle|escape }}</h1>
-                
+{% block content %}
+<p>
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et 
+dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip 
+ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu 
+fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia 
+deserunt mollit anim id est laborum.
+</p>
+{% endblock %}
+		        </div> <!-- close PageContent -->
+		    </div> <!-- close MainContent -->
+        </td>
+    </tr>
+	<!-- START FOOTER -->
+    <tr valign="top">
+        <td colspan="4"><div id="footer"><!--<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>--></div></td>
+    </tr>
+    </table>
+        
+    </div> <!-- close content -->
+        
+</body>
+</html>
