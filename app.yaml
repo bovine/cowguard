@@ -3,15 +3,28 @@ version: 1
 runtime: python
 api_version: 1
 
+default_expiration: "3d"
+
 handlers:
 - url: /css
+  mime_type: "text/css"
+  expiration: "4d"
   static_dir: css
 
 - url: /js
+  mime_type: "application/javascript"
+  expiration: "1d"
   static_dir: js
 
 - url: /img
+  expiration: "10d"
   static_dir: img
+
+- url: /tasks
+  script: main.py
+  login: admin
 
 - url: .*
   script: main.py
+  login: required
+
