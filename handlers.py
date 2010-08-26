@@ -214,13 +214,41 @@ class AddCameraSourceHandler(webapp.RequestHandler):
 # ----------------------------------------------------------------------
 
 class EditCameraSourceHandler(webapp.RequestHandler):
-    def get(self):
-        self.response.out.write("unimplemented")
+    def post(self):
+        keyname = self.request.get('camera')
+        if keyname is not None:
+            cam = CameraSource.get(db.Key(keyname))
+
+        cmd = self.request.get('cmd')
+        if cmd == 'get':
+            self.response.headers['Content-Type'] = 'text/json'
+            self.response.out.write("{")
+            self.response.out.write(' "name": "%s",' % cam.name)
+            self.response.out.write(' "url": "%s",' % cam.url)
+            self.response.out.write(' "enabled": %d,' % cam.enabled)
+            self.response.out.write(' "poll_max_fps": %d,' % cam.poll_max_fps)
+            self.response.out.write(' "alert_max_fps": %d,' % cam.alert_max_fps)
+            self.response.out.write(' "num_secs_after": %f' % cam.num_secs_after)
+            self.response.out.write("}")
+
+        elif cmd == 'save':
+            cam.name = self.request.get('name')
+            cam.url = self.request.get('url')
+            cam.enabled = bool(self.request.get('enabled'))
+            cam.poll_max_fps = int(self.request.get('poll_max_fps'))
+            cam.alert_max_fps = int(self.request.get('alert_max_fps'))
+            cam.num_secs_after = float(self.request.get('num_secs_after'))
+            cmd.put()
+
+        else:
+            self.error(500)
+            return
+
 
 # ----------------------------------------------------------------------
 
 class DeleteCameraSourceHandler(webapp.RequestHandler):
-    def get(self):
+    def post(self):
         keyname = self.request.get('camera')
         if keyname is not None:
             cam = CameraSource.get(db.Key(keyname))
@@ -246,6 +274,7 @@ class BrowseEventsHandler(webapp.RequestHandler):
         if keyname is not None:
             cam = CameraSource.get(db.Key(keyname))
         else:
+            self.error(500)
             return
 
         period = self.request.get('period')
@@ -274,7 +303,6 @@ class BrowseEventsHandler(webapp.RequestHandler):
 
 
         template_values = {
-            'pagetitle': 'Event Browser for %s' % cam.name,
             'user_name': users.get_current_user(),
             'logout_url': users.create_logout_url('/'),
             'camera': cam,
@@ -338,7 +366,6 @@ class MainSummaryHandler(webapp.RequestHandler):
 
 
         template_values = {
-            'pagetitle': 'Camera Summary',
             'user_name': users.get_current_user(),
             'logout_url': users.create_logout_url('/'),
             'camlist': results,
@@ -374,7 +401,7 @@ class LiveThumbHandler(webapp.RequestHandler):
             
 # ----------------------------------------------------------------------
 
-# TOOD: It doesn't seem like there is any way to do this type of pushed image updating in App Engine?
+# TODO: It doesn't seem like there is any way to do this type of pushed image updating in App Engine?
 
 # http://www.jpegcameras.com/
 #class LiveThumbStreamHandler(webapp.RequestHandler):
