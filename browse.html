@@ -1,5 +1,12 @@
-{% include "inc/header.html" %}
-        
+{% extends "inc/base.html" %}
+
+{% block title %}Event Browser for {{ camera.name|escape}}{% endblock %}
+{% block title2 %}{{ camera.name|escape}}{% endblock %}
+
+{% block extra_head %}
+{% endblock %}
+
+{% block content %}
     <div id="tblHead">
     <table width="100%" border="0" cellspacing="0" cellpadding="5">
 
@@ -31,5 +38,4 @@
     </table>
     </div>
 
-
-{% include "inc/footer.html" %}
+{% endblock %}
