@@ -60,7 +60,8 @@ $(function() {
 				allFields.removeClass('ui-state-error');
 
 				bValid = bValid && checkLength(cam_name,"name",3,100);
-                bValid = bValid && checkRegexp(cam_url,/^https?:\/\/([-\w\.]+)+(:\d+)?(\/([\w/_\.]*(\?\S+)?)?)?$/,"Source URL is invalid.");
+                //bValid = bValid && checkRegexp(cam_url,/^https?:\/\/([-\w\.]+)+(:\d+)?(\/([\w/_\.]*(\?\S+)?)?)?$/,"Source URL is invalid.");
+                bValid = bValid && checkRegexp(cam_url,/^https?:\/\/\S+$/,"Source URL is invalid.");
 				bValid = bValid && checkRegexp(cam_poll_max_fps,/^[0-9]+$/,"Max frame rate (normal) must be an integer.");
                 bValid = bValid && checkRegexp(cam_alert_max_fps,/^[1-9][0-9]*$/,"Max frame rate (alert) must be an integer.");
                 bValid = bValid && checkRegexp(cam_num_secs_after,/^[1-9][0-9]*(\.[0-9]+)?$/,"Number of seconds after alert must be a decimal.");					
