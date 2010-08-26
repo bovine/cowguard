@@ -1,4 +1,8 @@
 cron:
 - description: image capture
   url: /tasks/poll_sources
-  schedule: every 1 minute
+  schedule: every 1 minutes
+
+- description: garbage collection
+  url: /tasks/garbage_collector
+  schedule: every 1 hours
