@@ -20,7 +20,7 @@ handlers:
   expiration: "10d"
   static_dir: img
 
-- url: /tasks
+- url: /tasks/.*
   script: main.py
   login: admin
 
