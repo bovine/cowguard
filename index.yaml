@@ -13,6 +13,13 @@ indexes:
 - kind: CameraEvent
   properties:
   - name: camera_id
+  - name: deleted
+  - name: event_start
+    direction: desc
+
+- kind: CameraEvent
+  properties:
+  - name: camera_id
   - name: event_start
 
 - kind: CameraFrame
