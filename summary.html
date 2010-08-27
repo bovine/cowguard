@@ -98,7 +98,11 @@
     </p>
 </div>
 
-<p><button id="add_camera_button">Add new camera source</button></p>
-<p><a href='/tasks/poll_sources'>[Poll sources]</a></p>
+<br/>
+<p>
+<button id="add_camera_button">Add new camera source</button>
+<button onclick="$.get('/tasks/poll_sources', function(data) { alert(data); });">Debug: Poll sources</button>
+<button onclick="$.get('/tasks/garbage_collector', function(data) { alert(data); });">Debug: Garbage collector</button>
+</p>
 
 {% endblock %}
