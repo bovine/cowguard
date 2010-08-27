@@ -358,7 +358,7 @@ class BrowseEventsHandler(webapp.RequestHandler):
             'timenow': datetime.utcnow(),
             }
 
-        path = os.path.join(os.path.dirname(__file__), 'browse.html')
+        path = os.path.join(os.path.dirname(__file__), 'inc/browse.html')
         self.response.out.write(template.render(path, template_values))
 
         
@@ -421,7 +421,7 @@ class MainSummaryHandler(webapp.RequestHandler):
             'timenow': datetime.utcnow(),
             }
 
-        path = os.path.join(os.path.dirname(__file__), 'summary.html')
+        path = os.path.join(os.path.dirname(__file__), 'inc/summary.html')
         self.response.out.write(template.render(path, template_values))
 
 # ----------------------------------------------------------------------
@@ -477,7 +477,7 @@ class GetImgSeqEventHandler(webapp.RequestHandler):
             'timenow': datetime.utcnow(),
             }
 
-        path = os.path.join(os.path.dirname(__file__), 'imgseq.html')
+        path = os.path.join(os.path.dirname(__file__), 'inc/imgseq.html')
         self.response.out.write(template.render(path, template_values))
 
 
