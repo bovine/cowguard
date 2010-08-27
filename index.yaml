@@ -37,6 +37,11 @@ indexes:
   properties:
   - name: event_id
   - name: image_time
+
+- kind: CameraFrame
+  properties:
+  - name: event_id
+  - name: image_time
     direction: desc
 
 - kind: CameraSource
