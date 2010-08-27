@@ -59,12 +59,13 @@ class ImageFetcherTask(webapp.RequestHandler):
 
 
     def get(self):
+        self.response.headers['Content-Type'] = 'text/plain'
+
         q = CameraSource.all()
         q.filter("enabled =",True).filter("deleted =",False)
 
-        results = q.fetch(MAX_CAMERAS)
         # TODO: needs to keep looping for about a minute, honoring the poll_max_fps
-        for cam in results:
+        for cam in q.fetch(MAX_CAMERAS):
             response = urlfetch.fetch(cam.url, payload=None, method=urlfetch.GET, headers={}, allow_truncated=False, follow_redirects=True, deadline=5)
             capture_time = datetime.now()
 
@@ -111,7 +112,7 @@ class ImageFetcherTask(webapp.RequestHandler):
             else:
                 motion_rating = 0
 
-            self.response.out.write("pct_change = %f, ewma = %f, motion_rating = %f<br>" % (motion_pct_change, ewma, motion_rating))
+            self.response.out.write("pct_change = %f, ewma = %f, motion_rating = %f\n" % (motion_pct_change, ewma, motion_rating))
             if motion_rating > 100.0:
                 motion_rating = 100
             else:
@@ -175,7 +176,6 @@ class ImageFetcherTask(webapp.RequestHandler):
 
 
 
-        #self.response.headers['Content-Type'] = 'text/html'
         self.response.out.write("done")
 
 
@@ -310,6 +310,7 @@ class GarbageCollectorTask(webapp.RequestHandler):
         except DeadlineExceededError:
             pass
 
+        self.response.headers['Content-Type'] = 'text/plain'
         self.response.out.write("Deleted %d objects." % numDeleted)
         
 # ----------------------------------------------------------------------
