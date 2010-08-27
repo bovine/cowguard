@@ -1,0 +1,32 @@
+{% extends "inc/base.html" %}
+
+{% block title %}Event Playback{% endblock %}
+{% block title2 %}Event Playback{% endblock %}
+
+{% block extra_head %}
+
+<script type="text/javascript">
+var frameAry = new Array(
+{% for frame in framelist %}
+    $('<img />').attr('src', "/frame/viewthumb?frame={{ frame.key }}" ){% if not forloop.last %},{% endif %}
+{% endfor %}
+);
+
+var nextFrame = 0;
+function animateNextFrame () {
+    $('#imagePlayer').attr('src', frameAry[nextFrame].attr('src'));
+    nextFrame = (nextFrame + 1) % frameAry.length;
+}
+
+setInterval ("animateNextFrame()", 500);
+
+</script>
+
+
+{% endblock %}
+
+{% block content %}
+
+    <p>Event has {{ event.total_frames }} frames.</p>
+    <img id="imagePlayer"/>
+{% endblock %}

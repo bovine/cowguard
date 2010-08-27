@@ -465,17 +465,20 @@ class GetImgSeqEventHandler(webapp.RequestHandler):
             self.response.out.write("unknown event")
             return
 
-        self.response.out.write("Event has %d frames.<br>" % event.total_frames)
-
         q2 = CameraFrame.all()
         #q2.filter("event_id =", keyname).order("-image_time")
         q2.filter("camera_id =", event.camera_id).filter("image_time >=", event.event_start).filter("image_time <=", event.event_end).order("-image_time")
 
-        for frame in q2.fetch(100):
-            self.response.out.write("<img src='/frame/viewthumb?frame=%s' /><br/>\n" % frame.key())
+        template_values = {
+            'user_name': users.get_current_user(),
+            'logout_url': users.create_logout_url('/'),
+            'event': event,
+            'framelist': q2.fetch(100),
+            'timenow': datetime.utcnow(),
+            }
 
-        self.response.out.write("done")
-
+        path = os.path.join(os.path.dirname(__file__), 'imgseq.html')
+        self.response.out.write(template.render(path, template_values))
 
 
 # Send back a scaled thumbnail of any CameraFrame.
