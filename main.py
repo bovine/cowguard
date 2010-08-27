@@ -21,6 +21,7 @@ def main():
                                           #('/events/delete', handlers.DeleteEventHandler),
                                           #('/events/archive', handlers.ArchiveEventHandler),
                                           #('/events/mjpeg', handlers.GetMjpegEventHandler),
+                                          ('/events/imgseq', handlers.GetImgSeqEventHandler),
                                           ('/tasks/poll_sources', handlers.ImageFetcherTask),
                                           ('/tasks/garbage_collector', handlers.GarbageCollectorTask) ],
                                          debug=True)

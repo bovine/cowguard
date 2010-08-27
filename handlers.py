@@ -451,6 +451,33 @@ class LiveThumbHandler(webapp.RequestHandler):
 
 # ----------------------------------------------------------------------
 
+class GetImgSeqEventHandler(webapp.RequestHandler):
+    def get(self):
+        keyname = self.request.get('event')
+        if keyname is None:
+            self.error(500)
+            self.response.out.write("missing event")
+            return
+
+        event = CameraEvent.get(db.Key(keyname))
+        if event is None or event.deleted == True:
+            self.error(404)
+            self.response.out.write("unknown event")
+            return
+
+        self.response.out.write("Event has %d frames.<br>" % event.total_frames)
+
+        q2 = CameraFrame.all()
+        #q2.filter("event_id =", keyname).order("-image_time")
+        q2.filter("camera_id =", event.camera_id).filter("image_time >=", event.event_start).filter("image_time <=", event.event_end).order("-image_time")
+
+        for frame in q2.fetch(100):
+            self.response.out.write("<img src='/frame/viewthumb?frame=%s' /><br/>\n" % frame.key())
+
+        self.response.out.write("done")
+
+
+
 # Send back a scaled thumbnail of any CameraFrame.
 class CameraFrameThumbHandler(webapp.RequestHandler):
     def get(self):
@@ -477,7 +504,7 @@ class CameraFrameThumbHandler(webapp.RequestHandler):
             return
         else:
             img = images.Image(image_data=imgdata)
-            img.resize(width=80, height=100)
+            #img.resize(width=80, height=100)
             img.im_feeling_lucky()
             thumbnail = img.execute_transforms(output_encoding=images.JPEG)
 

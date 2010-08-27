@@ -27,6 +27,18 @@ indexes:
   - name: camera_id
   - name: image_time
 
+- kind: CameraFrame
+  properties:
+  - name: camera_id
+  - name: image_time
+    direction: desc
+
+- kind: CameraFrame
+  properties:
+  - name: event_id
+  - name: image_time
+    direction: desc
+
 - kind: CameraSource
   properties:
   - name: deleted
