@@ -3,6 +3,8 @@
 from google.appengine.ext import webapp, db
 from google.appengine.ext.webapp import util, template
 from google.appengine.api import memcache, urlfetch, images, users
+from google.appengine.api.labs import taskqueue
+from google.appengine.runtime import DeadlineExceededError
 from datetime import datetime, timedelta
 import os
 import urllib
@@ -263,9 +265,52 @@ class DeleteCameraSourceHandler(webapp.RequestHandler):
 
 class GarbageCollectorTask(webapp.RequestHandler):
     def get(self):
-        # Look for CameraSources marked deleted
-        # Look for Cameraevents marked deleted
-        self.response.out.write("unimplemented")
+        numDeleted = 0
+        try:
+            # Look for CameraEvents marked deleted
+            q = CameraEvent.all()
+            q.filter("deleted =",True)
+            for event in q.fetch(10):
+                # Delete any frames belonging to this deleted CameraSource.
+                q2 = CameraFrame.all()
+                q2.filter("event_id =", event.key())
+                if q2.count() > 0:
+                    for frame in q2.fetch(500):
+                        frame.delete()
+                        numDeleted = numDeleted + 1
+                else:
+                    # No more frames belonging to this event, so delete it too.
+                    event.delete()
+                    numDeleted = numDeleted + 1
+
+            # Look for CameraSources marked deleted
+            q = CameraSource.all()
+            q.filter("deleted =",True)
+            for cam in q.fetch(10):
+                # Mark any events belonging to this deleted CameraSource as deleted.
+                q2 = CameraEvent.all()
+                q2.filter("camera_id =", cam.key()).filter("deleted =",False)
+                for event in q2.fetch(100):
+                    numDeleted = numDeleted + 1
+                    event.deleted = True
+                    event.put()
+
+                # Delete any frames belonging to this deleted CameraSource.
+                q2 = CameraFrame.all()
+                q2.filter("camera_id =", cam.key())
+                for frame in q2.fetch(500):
+                    frame.delete()
+                    numDeleted = numDeleted + 1
+
+                # Only delete the camera itself if nothing else needed to be done.
+                if numDeleted == 0:
+                    cam.delete()
+                    numDeleted = numDeleted + 1
+
+        except DeadlineExceededError:
+            pass
+
+        self.response.out.write("Deleted %d objects." % numDeleted)
         
 # ----------------------------------------------------------------------
 
@@ -281,7 +326,7 @@ class BrowseEventsHandler(webapp.RequestHandler):
 
         period = self.request.get('period')
         q2 = CameraEvent.all()
-        q2.filter("camera_id =", cam.key())
+        q2.filter("camera_id =", cam.key()).filter("deleted =", False).order("-event_start")
         if period == "today":
             q2.filter("event_start >=", datetime.now().replace(hour=0,minute=0)) 
         elif period == "yesterday":
@@ -400,39 +445,46 @@ class LiveThumbHandler(webapp.RequestHandler):
             self.error(404)
             self.response.out.write("not found")
             return
-            
+
 # ----------------------------------------------------------------------
 
-# TODO: It doesn't seem like there is any way to do this type of pushed image updating in App Engine?
+# Send back a scaled thumbnail of any CameraFrame.
+class CameraFrameThumbHandler(webapp.RequestHandler):
+    def get(self):
+        keyname = self.request.get('frame')
+        if keyname is None:
+            self.error(500)
+            self.response.out.write("missing frame")
+            return
 
-# http://www.jpegcameras.com/
-#class LiveThumbStreamHandler(webapp.RequestHandler):
-#    def get(self):
-#        keyname = self.request.get('camera')
-#        if keyname is None:
-#            self.error(500)
-#            self.response.out.write("missing camera")
-#            return
-#
-#        imgdata = memcache.get("camera{%s}" % keyname)
-#        if imgdata is not None:
-#            img = images.Image(image_data=imgdata)
-#            img.resize(width=80, height=100)
-#            img.im_feeling_lucky()
-#            thumbnail = img.execute_transforms(output_encoding=images.JPEG)
-#
-#            self.response.headers['Content-Type'] = 'Content-type: multipart/x-mixed-replace;boundary=End'
-#            self.response.out.write('--End')
-#            self.response.out.write('Content-type: image/jpeg')
-#             Content-Length: 9290
-#            self.response.out.write(thumbnail)
-#            self.response.out.write('--End--')
-#            #TODO
-#        else:            
-#            self.error(404)
-#            self.response.out.write("not found")
-#            return
+        frame = CameraFrame.get(db.Key(keyname))
+        if frame is not None:
+            imgdata = frame.full_size_image
+        else:
+            imgdata = None
 
+        if imgdata is None:
+            # requested image was not found.
+            self.error(404)
+            self.response.out.write("not found")
+            return
+        elif self.request.headers.has_key('If-Modified-Since'):
+            # frames are never modified, so always say unmodified.
+            self.error(304)
+            return
+        else:
+            img = images.Image(image_data=imgdata)
+            img.resize(width=80, height=100)
+            img.im_feeling_lucky()
+            thumbnail = img.execute_transforms(output_encoding=images.JPEG)
+
+            self.response.headers['Content-Type'] = 'image/jpeg'
+            current_time = datetime.utcnow()
+            self.response.headers['Last-Modified'] = frame.image_time.strftime('%a, %d %b %Y %H:%M:%S GMT')
+            self.response.headers['Expires'] = current_time + timedelta(days=30)
+            self.response.headers['Cache-Control']  = 'public, max-age=315360000'
+            self.response.headers['Date']           = current_time
+            self.response.out.write(thumbnail)
 
 
 # ----------------------------------------------------------------------
