@@ -355,6 +355,7 @@ class BrowseEventsHandler(webapp.RequestHandler):
             'logout_url': users.create_logout_url('/'),
             'camera': cam,
             'eventlist': results,
+            'timenow': datetime.utcnow(),
             }
 
         path = os.path.join(os.path.dirname(__file__), 'browse.html')
@@ -417,6 +418,7 @@ class MainSummaryHandler(webapp.RequestHandler):
             'user_name': users.get_current_user(),
             'logout_url': users.create_logout_url('/'),
             'camlist': results,
+            'timenow': datetime.utcnow(),
             }
 
         path = os.path.join(os.path.dirname(__file__), 'summary.html')
