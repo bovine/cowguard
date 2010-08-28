@@ -466,8 +466,8 @@ class GetImgSeqEventHandler(webapp.RequestHandler):
             return
 
         q2 = CameraFrame.all()
-        #q2.filter("event_id =", keyname).order("-image_time")
-        q2.filter("camera_id =", event.camera_id).filter("image_time >=", event.event_start).filter("image_time <=", event.event_end).order("-image_time")
+        #q2.filter("event_id =", event.key()).order("image_time")
+        q2.filter("camera_id =", event.camera_id).filter("image_time >=", event.event_start).filter("image_time <=", event.event_end).order("image_time")
 
         template_values = {
             'user_name': users.get_current_user(),
