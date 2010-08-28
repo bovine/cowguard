@@ -17,6 +17,7 @@ def main():
                                           ('/camera/trigger', handlers.TriggerCameraSourceHandler), 
                                           ('/camera/livethumb', handlers.LiveThumbHandler),
                                           ('/events/browse', handlers.BrowseEventsHandler),
+                                          ('/events/delete', handlers.DeleteCameraEventHandler),
                                           ('/frame/viewthumb', handlers.CameraFrameThumbHandler),
                                           #('/events/delete', handlers.DeleteEventHandler),
                                           #('/events/archive', handlers.ArchiveEventHandler),

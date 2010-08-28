@@ -4,6 +4,7 @@
 {% block title2 %}{{ camera.name|escape}}{% endblock %}
 
 {% block extra_head %}
+<script src="/js/browse.js" type="text/javascript"></script>
 {% endblock %}
 
 {% block content %}
@@ -30,9 +31,9 @@
         <td>....</td>
         <td>{{ event.comments|escape }}</td>
         <td><a href='/events/imgseq?event={{ event.key }}'>[Images]</a> 
-            <a href='/events/mjpeg?event={{ event.key }}'>[MJPEG]</a> 
-            <a href='/events/delete?event={{ event.key }}'>[Delete]</a> 
-            <a href='/events/archive?event={{ event.key }}'>[Archive]</a></td>
+            <a href='/events/mjpeg?event={{ event.key }}' onclick="alert('unimplemented'); return false;">[MJPEG]</a> 
+            <a href="javascript:deleteEventButton('{{ event.key }}')">[Delete]</a> 
+            <a href='/events/archive?event={{ event.key }}' onclick="alert('unimplemented'); return false;">[Archive]</a></td>
     </tr>
     {% endfor %}
     </tbody>

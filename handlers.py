@@ -251,6 +251,18 @@ class EditCameraSourceHandler(webapp.RequestHandler):
 
 # ----------------------------------------------------------------------
 
+class DeleteCameraEventHandler(webapp.RequestHandler):
+    def post(self):
+        keyname = self.request.get('event')
+        if keyname is not None:
+            event = CameraEvent.get(db.Key(keyname))
+            event.deleted = True
+            event.put()
+
+        self.response.out.write("deleted")
+
+# ----------------------------------------------------------------------
+
 class DeleteCameraSourceHandler(webapp.RequestHandler):
     def post(self):
         keyname = self.request.get('camera')
@@ -260,7 +272,6 @@ class DeleteCameraSourceHandler(webapp.RequestHandler):
             cam.put()
 
         self.response.out.write("deleted")
-
 # ----------------------------------------------------------------------
 
 class GarbageCollectorTask(webapp.RequestHandler):
@@ -480,6 +491,7 @@ class GetImgSeqEventHandler(webapp.RequestHandler):
         path = os.path.join(os.path.dirname(__file__), 'inc/imgseq.html')
         self.response.out.write(template.render(path, template_values))
 
+# ----------------------------------------------------------------------
 
 # Send back a scaled thumbnail of any CameraFrame.
 class CameraFrameThumbHandler(webapp.RequestHandler):
