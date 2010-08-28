@@ -45,7 +45,7 @@
         <td><a href="/events/browse?camera={{cam.key}}&period=month">{{ cam.ethismonth }} ({{ cam.fthismonth }})</a></td>
         <td><a href="javascript:editCameraButton('{{ cam.key|escape }}')">[Edit]</a> 
             <a href="javascript:deleteCameraButton('{{ cam.key|escape }}')">[Delete]</a> 
-            <a href='/camera/trigger?camera={{ cam.key }}'>[Trigger]</a></td>
+            <a href="javascript:triggerCameraButton('{{ cam.key }}')">[Trigger]</a></td>
     </tr>
     {% endfor %}
     </tbody>

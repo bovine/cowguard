@@ -181,3 +181,6 @@ function deleteCameraButton(camkey) {
     $("#dialog-confirm").dialog("open");
 }
 
+function triggerCameraButton(camkey) {
+    $.get('/camera/trigger?camera=' + camkey, function(data) { alert(data); });
+}
