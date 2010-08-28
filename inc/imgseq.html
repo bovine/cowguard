@@ -13,12 +13,20 @@ var frameAry = new Array(
 );
 
 var nextFrame = 0;
+var numFrames = frameAry.length;
 function animateNextFrame () {
     $('#imagePlayer').attr('src', frameAry[nextFrame].attr('src'));
-    nextFrame = (nextFrame + 1) % frameAry.length;
+    $("#progressbar").progressbar({ value: Math.round((nextFrame + 1) * 100.0 / numFrames)});
+    nextFrame = (nextFrame + 1) % numFrames;
 }
 
-setInterval ("animateNextFrame()", 500);
+if (numFrames > 0) {
+    setInterval ("animateNextFrame()", 500);
+}
+
+$(function() {
+	$("#progressbar").progressbar({ value: 0 });
+});
 
 </script>
 
@@ -28,5 +36,7 @@ setInterval ("animateNextFrame()", 500);
 {% block content %}
 
     <p>Event has {{ event.total_frames }} frames.</p>
+    <div id="progressbar"></div>
+
     <img id="imagePlayer"/>
 {% endblock %}
