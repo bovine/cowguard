@@ -110,21 +110,21 @@ a:hover {
 
 *html #logo {
 	margin-top: 3px;
-	}
+}
 
 
 .text {
-		font: Arial, Helvetica, sans-serif;
-		font-size: 12px;
-		font-weight: bold;
-		}
+	font: Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	font-weight: bold;
+}
 		
 .textBox {
-		border: 1px solid #b8b299;
-		width: 125px;
-		height: 20px;
-		margin-left: 10px;
-		}
+	border: 1px solid #b8b299;
+	width: 125px;
+	height: 20px;
+	margin-left: 10px;
+}
 
 	
 /*####################################################### */
@@ -133,7 +133,7 @@ a:hover {
 
 #tblHead {
 	border-bottom: 4px solid #646150;
-	}
+}
 
 tr.head th { 
 	background: url('/img/th-bg.png') no-repeat bottom right #FFF;
@@ -141,16 +141,17 @@ tr.head th {
 	height: 29px; 
 	padding: 4px 9px 7px 5px; 
 	border-top: 1px solid #c5bfa5; 
-	}
+}
 	
 tr.head th.first { 
-	border-left: 1px solid #c5bfa5; }
+	border-left: 1px solid #c5bfa5; 
+}
 	
 tr.head th.last { 
 	background-image: url('/img/th-bg-last.png'); 
 	background-position: bottom right; 
 	background-repeat: no-repeat; 
-	}
+}
 	
 tr.even td { 
 	background-color: #e9f1f4; 
@@ -159,7 +160,7 @@ tr.even td {
 	color: #656565; 
 	font-weight: bold; 
 	padding: 5px 10px; 
-	}
+}
 	
 tr.odd td { 
 	background-color: #FFF; 
@@ -167,24 +168,27 @@ tr.odd td {
 	color: #656565; 
 	font-weight: bold; 
 	padding: 5px 10px;   
-	}
+}
 
 #pageContent { 
 	padding: 20px; 
 	background: url('/img/mainContentBG.png') repeat-x bottom left #FFF;
 	border: 2px solid #FFF;
-	
 }
 	
 #pageContent .head a.sort, #pageContent .head a.sort:visited { 
 	text-decoration: none; 
 	display: block; 
-	color: #656565;}		
+	color: #656565;
+}
+
 #pageContent .head a.sort:hover { text-decoration: underline;}
 
 #pageContent a, #pageContent a:visited { 
 	text-decoration: underline; 
-	color: #5d839a;}
+	color: #5d839a;
+}
+
 #pageContent a:hover {text-decoration: none;}
 
 
@@ -200,70 +204,46 @@ tr.odd td {
 	margin: 10px;
 	font-size: 11px; 
 	height: 30px;
-	display: block;}
+	display: block;
+}
 	
 .pageBox {
 	color: white;
-	}
-
-#pagination UL
-{
-list-style: none;
-margin: 0;
-padding: 0;
-border: none;
 }
 
-#pagination LI
-{
-display: block;
-margin: 0;
-padding: 0;
-float: left;
-width: auto;
+#pagination UL {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: none;
 }
 
-#pagination A
-{
-color: #444;
-display: block;
-text-decoration: none;
-margin: 0;
-padding: 2px 10px;
+#pagination LI {
+    display: block;
+    margin: 0;
+    padding: 0;
+    float: left;
+    width: auto;
 }
 
-#pagination A.active:link, #pagination A.active:visited
-{
-position: relative;
-z-index: 102;
-text-decoration: none;
+#pagination A {
+    color: #444;
+    display: block;
+    text-decoration: none;
+    margin: 0;
+    padding: 2px 10px;
 }
 
-#pagination A:hover, #pagination A:active {text-decoration: underline; }
+#pagination A.active:link, #pagination A.active:visited {
+    position: relative;
+    z-index: 102;
+    text-decoration: none;
+}
 
-/*####################################################### */
-/*##################  MODAL WINDOW STYLES  ############## */
-/*####################################################### */
-	
-#modContent {
-	background: #FFF;
-	text-align: left;
-	padding: 5px 10px 10px 10px;
-	margin: 0px;
-	}
+#pagination A:hover, #pagination A:active {
+    text-decoration: underline;
+}
 
-#modFooter {
-	background: url('/img/mainContentBG.png') repeat-x bottom left #FFF;
-	height: 39px;
-	width: 100%;
-	float: left;
-	position: absolute;
-	bottom: 0px;
-	left:0px;
-	margin: 0px;
-	padding: 0px;
-	text-align: left;
-	}
 	
 /*####################################################### */
 /*##################  FOOTER STYLES ##################### */
@@ -276,11 +256,10 @@ text-decoration: none;
 	text-align: left;
 	margin-top: 10px;
 	padding-left: 10px;
-	}
+}
 
 #footer p {
 	margin: 0px;
 	padding: 0px;
 	line-height: 12px;
-	}
-	}
+}
