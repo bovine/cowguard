@@ -27,7 +27,9 @@
         <td style="background-image: url('/img/rightcap.gif'); background-position: right top; background-repeat: no-repeat" nowrap="true" width="260" height="83">
 			<div id="userInfo">
             <ul>
-            <li>Welcome, {% if user %}{{ user.nick|escape }}{% else %}Guest{% endif %}</li>
+            <li>
+                Welcome, {{ user.nickname }}
+                <!-- {% if user %}{{ user.nickname|escape }}{% else %}Guest{% endif %}--></li>
             <li>&nbsp;&nbsp;|&nbsp;&nbsp;</li>
             <li><a href="{{ logout_url }}">Logout?</a></li>
             </ul>
@@ -54,7 +56,7 @@ deserunt mollit anim id est laborum.
     </tr>
 	<!-- START FOOTER -->
     <tr valign="top">
-        <td colspan="4"><div id="footer"><p>Last updated: {{ timenow }}</p></div></td>
+        <td colspan="4"><div id="footer"><p>Last refreshed: {{ timenow }}</p></div></td>
     </tr>
     </table>
         

@@ -21,12 +21,28 @@ function animateNextFrame () {
 }
 
 if (numFrames > 0) {
-    setInterval ("animateNextFrame()", 500);
+    setInterval("animateNextFrame()", 500);
 }
 
 $(function() {
 	$("#progressbar").progressbar({ value: 0 });
 });
+
+function handle_back_button() {
+    //document.location = "";
+    //location.replace("xxx");
+    history.go(-1);
+}
+
+function handle_delete_button(eventkey) {
+    $.post('/events/delete', { event: eventkey }, function(data) { 
+        alert(data); 
+        //location.reload(); 
+        history.go(-1);
+        // TODO: force refresh of previous page.
+        // window.location.reload(history.go(-2));
+    });
+}
 
 </script>
 
@@ -34,6 +50,12 @@ $(function() {
 {% endblock %}
 
 {% block content %}
+
+    <p>
+    <button onclick="handle_back_button()">&lt; Back</button>
+    <button onclick="handle_delete_button('{{ event.key }}')">Delete event</button>
+    </p>
+    <br/>
 
     <p>Event has {{ event.total_frames }} frames.</p>
     <div id="progressbar"></div>

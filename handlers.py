@@ -23,6 +23,9 @@ MODETECT_IMAGE_SIZE = 100
 # must be between 0.0 and 1.0, with higher values giving faster response.
 MODETECT_EWMA_ALPHA = 0.25
 
+# threshold value to consider motion detected (0-100, higher values requiring
+# greater amounts of motion to trigger).
+MODETECT_THRESHOLD = 50
 
 
 # ----------------------------------------------------------------------
@@ -118,7 +121,8 @@ class ImageFetcherTask(webapp.RequestHandler):
             else:
                 motion_rating = int(round(motion_rating))
 
-            motion_found = (motion_rating > 50)
+            # TODO: this should use a user-controlled setting in the CameraSource
+            motion_found = (motion_rating > MODETECT_THRESHOLD)
 
 
             # add to an existing event if needed
@@ -362,7 +366,7 @@ class BrowseEventsHandler(webapp.RequestHandler):
 
 
         template_values = {
-            'user_name': users.get_current_user(),
+            'user': users.get_current_user(),
             'logout_url': users.create_logout_url('/'),
             'camera': cam,
             'eventlist': results,
@@ -390,10 +394,11 @@ class MainSummaryHandler(webapp.RequestHandler):
             # TODO: cam.enabled, cam.last_poll_time, cam.last_poll_result
 
 
+            # TODO: deleted frames should not be included in these counts.
             qf = CameraFrame.all()            
             qf.filter("camera_id =", cam.key())
             qe = CameraEvent.all()
-            qe.filter("camera_id =", cam.key())
+            qe.filter("deleted =", False).filter("camera_id =", cam.key())
             cam.ftotal = qf.count()
             cam.etotal = qe.count()
 
@@ -418,6 +423,7 @@ class MainSummaryHandler(webapp.RequestHandler):
             qf.filter("image_time >=", datetime.now().replace(hour=0,minute=0) - timedelta(days=1))
             qf.filter("image_time <", datetime.now().replace(hour=0,minute=0))
             qe = CameraEvent.all()
+            qe.filter("deleted =", False)
             qe.filter("camera_id =", cam.key())
             qe.filter("event_start >=", datetime.now().replace(hour=0,minute=0) - timedelta(days=1))
             qe.filter("event_start <", datetime.now().replace(hour=0,minute=0))
@@ -426,7 +432,7 @@ class MainSummaryHandler(webapp.RequestHandler):
 
 
         template_values = {
-            'user_name': users.get_current_user(),
+            'user': users.get_current_user(),
             'logout_url': users.create_logout_url('/'),
             'camlist': results,
             'timenow': datetime.utcnow(),
@@ -481,7 +487,7 @@ class GetImgSeqEventHandler(webapp.RequestHandler):
         q2.filter("camera_id =", event.camera_id).filter("image_time >=", event.event_start).filter("image_time <=", event.event_end).order("image_time")
 
         template_values = {
-            'user_name': users.get_current_user(),
+            'user': users.get_current_user(),
             'logout_url': users.create_logout_url('/'),
             'event': event,
             'framelist': q2.fetch(100),
