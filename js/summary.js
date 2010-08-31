@@ -3,12 +3,15 @@ $(function() {
     var cam_key = $("#cam_key"),
         cam_name = $("#cam_name"),
         cam_url = $("#cam_url"),
+        cam_authuser = $("#cam_authuser"),
+        cam_authpass = $("#cam_authpass"),
         cam_enabled = $("#cam_enabled"),
         cam_poll_max_fps = $("#cam_poll_max_fps"),
         cam_alert_max_fps = $("#cam_alert_max_fps"),
         cam_num_secs_after = $("#cam_num_secs_after");
 
-    var allFields = $([]).add(cam_name).add(cam_url).add(cam_poll_max_fps).add(cam_alert_max_fps).add(cam_num_secs_after);
+    var allFields = $([]).add(cam_name).add(cam_url).add(cam_authuser).add(cam_authpass)
+            .add(cam_poll_max_fps).add(cam_alert_max_fps).add(cam_num_secs_after);
     var tips = $(".validateTips");
 
     function updateTips(t) {
@@ -88,6 +91,8 @@ $(function() {
                                     cmd: 'save',
                                     name: cam_name.val(),
                                     url: cam_url.val(),
+                                    authuser: cam_authuser.val(),
+                                    authpass: cam_authpass.val(),
                                     enabled: (cam_enabled.attr('checked') ? 1 : 0),
                                     poll_max_fps: cam_poll_max_fps.val(),
                                     alert_max_fps: cam_alert_max_fps.val(),
@@ -103,6 +108,8 @@ $(function() {
                         $.post("/camera/add", 
                                 {   name: cam_name.val(),
                                     url: cam_url.val(),
+                                    authuser: cam_authuser.val(),
+                                    authpass: cam_authpass.val(),
                                     enabled: (cam_enabled.attr('checked') ? 1 : 0),
                                     poll_max_fps: cam_poll_max_fps.val(),
                                     alert_max_fps: cam_alert_max_fps.val(),
@@ -194,6 +201,8 @@ function editCameraButton(camkey) {
                 // update the form to show the current object values.
                 $('#cam_name').val(data.name);
                 $('#cam_url').val(data.url);
+                $('#cam_authuser').val(data.authuser);
+                $('#cam_authpass').val(data.authpass);
                 $('#cam_enabled').attr('checked', data.enabled != 0);
                 $('#cam_poll_max_fps').val(data.poll_max_fps);
                 $('#cam_alert_max_fps').val(data.alert_max_fps);

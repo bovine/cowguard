@@ -6,10 +6,7 @@ from google.appengine.api import memcache, urlfetch, images, users
 from google.appengine.api.labs import taskqueue
 from google.appengine.runtime import DeadlineExceededError
 from datetime import datetime, timedelta
-import os
-import urllib
-import cgi
-import png
+import os, urllib, cgi, png
 from schema import CameraSource, CameraEvent, CameraFrame
 
 
@@ -57,7 +54,7 @@ class ImageFetcherTask(webapp.RequestHandler):
                     curColIter, prevColIter = iter(curRow), iter(prevRow)
                     while True:
                         curCol, prevCol = curColIter.next(), prevColIter.next()
-                        diffAmt = diffAmt + abs(curCol - prevCol)
+                        diffAmt += abs(curCol - prevCol)
                 except StopIteration:
                     pass
         except StopIteration:
@@ -71,7 +68,14 @@ class ImageFetcherTask(webapp.RequestHandler):
     def pollCamera(self, cam):
 
         # capture an image from the remote camera.
-        response = urlfetch.fetch(cam.url, payload=None, method=urlfetch.GET, headers={}, allow_truncated=False, follow_redirects=True, deadline=5)
+        request_headers = {}
+        if cam.authuser and cam.authpass:
+            basic_auth = base64.encodestring('%s:%s' % (cam.authuser, cam.authpass))
+            request_headers["Authorization"] = 'Basic %s' % basic_auth
+            
+        response = urlfetch.fetch(cam.url, payload=None, method=urlfetch.GET, 
+                                  headers=request_headers, allow_truncated=False,
+                                  follow_redirects=True, deadline=5)
         capture_time = datetime.now()
 
         # TODO: check status code and content-type, handle exceptions
@@ -157,13 +161,13 @@ class ImageFetcherTask(webapp.RequestHandler):
             if motion_rating > event.max_motion_rating:
                 event.max_motion_rating = motion_rating
 
-            event.total_frames = event.total_frames + 1
-            event.total_motion_rating = event.total_motion_rating + motion_rating
+            event.total_frames += 1
+            event.total_motion_rating += motion_rating
             event.avg_motion_rating = event.total_motion_rating / event.total_frames
 
             event.event_end = capture_time
             if motion_found:
-                event.alarm_frames = event.alarm_frames + 1
+                event.alarm_frames += 1
                 event.last_motion_time = capture_time
 
             event.put()
@@ -241,6 +245,8 @@ class AddCameraSourceHandler(webapp.RequestHandler):
         cam_poll_max_fps = int(self.request.get('poll_max_fps'))
         cam_alert_max_fps = int(self.request.get('alert_max_fps'))
         cam_num_secs_after = float(self.request.get('num_secs_after'))
+        cam_authuser = self.request.get('authuser')
+        cam_authpass = self.request.get('authpass')
 
         cam = CameraSource(name=cam_name,
                            url=cam_url,
@@ -249,7 +255,9 @@ class AddCameraSourceHandler(webapp.RequestHandler):
                            creation_time = datetime.now(),
                            enabled = cam_enabled,
                            deleted = False,
-                           num_secs_after = cam_num_secs_after)
+                           num_secs_after = cam_num_secs_after,
+                           authuser = cam_authuser,
+                           authpass = cam_authpass)
         cam.put()
 
         self.response.out.write("added=%s" % cam.key())
@@ -266,13 +274,27 @@ class EditCameraSourceHandler(webapp.RequestHandler):
         if cmd == 'get':
             self.response.headers['Content-Type'] = 'text/json'
             self.response.out.write("{")
+            # TODO: need to escape unsafe characters
             self.response.out.write(' "key": "%s",' % cam.key())
             self.response.out.write(' "name": "%s",' % cam.name)
             self.response.out.write(' "url": "%s",' % cam.url)
             self.response.out.write(' "enabled": %d,' % cam.enabled)
             self.response.out.write(' "poll_max_fps": %d,' % cam.poll_max_fps)
             self.response.out.write(' "alert_max_fps": %d,' % cam.alert_max_fps)
-            self.response.out.write(' "num_secs_after": %f' % cam.num_secs_after)
+            self.response.out.write(' "num_secs_after": %f,' % cam.num_secs_after)
+            
+            if cam.authuser:
+                tmpuser = cam.authuser
+            else:
+                tmpuser = ""
+                
+            if cam.authpass:
+                maskedpass = "*" * len(cam.authpass)
+            else:
+                maskedpass = ""
+                
+            self.response.out.write(' "authuser": "%s",' % tmpuser)
+            self.response.out.write(' "authpass": "%s"' % maskedpass)
             self.response.out.write("}")
 
         elif cmd == 'save':
@@ -282,6 +304,19 @@ class EditCameraSourceHandler(webapp.RequestHandler):
             cam.poll_max_fps = int(self.request.get('poll_max_fps'))
             cam.alert_max_fps = int(self.request.get('alert_max_fps'))
             cam.num_secs_after = float(self.request.get('num_secs_after'))
+            
+            tmpuser = self.request.get('authuser')
+            if not tmpuser:
+                cam.authuser = None
+            else:
+                cam.authuser = tmpuser
+                
+            tmppass = self.request.get('authpass')
+            if not tmppass:
+                cam.authpass = None
+            elif tmppass != '*' * len(tmppass):
+                cam.authpass = tmppass
+                
             cam.put()
             self.response.out.write("success")
 
@@ -329,11 +364,11 @@ class GarbageCollectorTask(webapp.RequestHandler):
                 if q2.count() > 0:
                     for frame in q2.fetch(500):
                         frame.delete()
-                        numDeleted = numDeleted + 1
+                        numDeleted += 1
                 else:
                     # No more frames belonging to this event, so delete it too.
                     event.delete()
-                    numDeleted = numDeleted + 1
+                    numDeleted += 1
 
             # Look for CameraSources marked deleted
             q = CameraSource.all()
@@ -343,7 +378,7 @@ class GarbageCollectorTask(webapp.RequestHandler):
                 q2 = CameraEvent.all()
                 q2.filter("camera_id =", cam.key()).filter("deleted =",False)
                 for event in q2.fetch(100):
-                    numDeleted = numDeleted + 1
+                    numDeleted += 1
                     event.deleted = True
                     event.put()
 
@@ -352,12 +387,12 @@ class GarbageCollectorTask(webapp.RequestHandler):
                 q2.filter("camera_id =", cam.key())
                 for frame in q2.fetch(500):
                     frame.delete()
-                    numDeleted = numDeleted + 1
+                    numDeleted += 1
 
                 # Only delete the camera itself if nothing else needed to be done.
                 if numDeleted == 0:
                     cam.delete()
-                    numDeleted = numDeleted + 1
+                    numDeleted += 1
 
         except DeadlineExceededError:
             pass
@@ -505,6 +540,7 @@ class LiveThumbHandler(webapp.RequestHandler):
 
 # ----------------------------------------------------------------------
 
+# Displays all of the frames belonging to an event, in an animated playback loop.
 class GetImgSeqEventHandler(webapp.RequestHandler):
     def get(self):
         keyname = self.request.get('event')
@@ -536,7 +572,7 @@ class GetImgSeqEventHandler(webapp.RequestHandler):
 
 # ----------------------------------------------------------------------
 
-# Send back a scaled thumbnail of any CameraFrame.
+# Send back a scaled thumbnail of any single CameraFrame.
 class CameraFrameThumbHandler(webapp.RequestHandler):
     def get(self):
         keyname = self.request.get('frame')
@@ -580,8 +616,8 @@ class CameraFrameThumbHandler(webapp.RequestHandler):
 
 class MainHandler(webapp.RequestHandler):
     def get(self):
-        #self.response.headers['Content-Type'] = 'text/plain'
-        self.response.out.write('Hello cows!')
+        self.redirect("/summary")
+        self.response.out.write('<p>Hello cows!</p>')
         self.response.out.write('<a href="/summary">View the system</a>')
 
 

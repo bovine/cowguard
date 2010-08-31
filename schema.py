@@ -6,7 +6,8 @@ from google.appengine.ext import db
 class CameraSource(db.Model):
     name = db.StringProperty(required=True)
     url = db.LinkProperty(required=True)
-    # TODO: username/password auth
+    authuser = db.StringProperty()
+    authpass = db.StringProperty()
     poll_max_fps = db.IntegerProperty(default=1, required=True)
     alert_max_fps = db.IntegerProperty(default=10, required=True)
     creation_time = db.DateTimeProperty(auto_now_add=True)
