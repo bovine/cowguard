@@ -1,7 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html>
     <head>
-        <title>Cow Guard: {% block title %}Subtitle{% endblock %}</title>
+        <title>Cowguard: {% block title %}Subtitle{% endblock %}</title>
 
         <link rel="shortcut icon" href="/img/favicon.ico" />
         <style type="text/css" media="all">@import "/css/default.css";</style>
@@ -20,18 +20,16 @@
     <tr valign="top" align="left">
         <td width="10" height="83"><img src="/img/leftcap.gif" width="10" height="83" alt="" /></td>
         <td style="background-image:url('/img/bnr-top-bg.gif'); background-repeat: repeat-x;" height="83" width="100%">
-            <p id="appname">Cow Guard: <small>{% block title2 %}Subtitle{% endblock %}</small></p>
+            <p id="appname"><a href="/summary">Cowguard</a>: <small>{% block title2 %}Subtitle{% endblock %}</small></p>
             <p id="logo">Networked Security Camera Monitor</p>
         </td>
 		<td width="58" height="83"><img src="/img/top-curve.gif" width="58" height="83" alt="" /></td>
         <td style="background-image: url('/img/rightcap.gif'); background-position: right top; background-repeat: no-repeat" nowrap="true" width="260" height="83">
 			<div id="userInfo">
             <ul>
-            <li>
-                Welcome, {{ user.nickname }}
-                <!-- {% if user %}{{ user.nickname|escape }}{% else %}Guest{% endif %}--></li>
+            <li>{{ user.nickname|escape }}</li>
             <li>&nbsp;&nbsp;|&nbsp;&nbsp;</li>
-            <li><a href="{{ logout_url }}">Logout?</a></li>
+            <li><a href="{{ logout_url }}">Sign out</a></li>
             </ul>
             </div><br /><img src="/img/1px.gif" width="260" height="1" />
         </td>
