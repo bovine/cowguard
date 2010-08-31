@@ -33,7 +33,13 @@ MODETECT_THRESHOLD = 50
 # This is the background handler that gets invoked to poll images for motion.
 class ImageFetcherTask(webapp.RequestHandler):
 
+    # Low-level helper used to compare two image arrays and return a floating-point 
+    # value representing the amount of motion found.  The actual numeric range returned
+    # here is not really important, since the relative change between different values
+    # will be scaled and then compared against the threshold setting.
     def detectMotion(self, prevImage, curImage):
+        # make sure both arguments are a 4-tuple and the images are the same size.
+        # The 4 elements should be (width,height,pixels,info)
         if prevImage == None or curImage == None:
             return 0.1
         elif len(prevImage) != 4 or len(curImage) != 4:
@@ -57,127 +63,158 @@ class ImageFetcherTask(webapp.RequestHandler):
         except StopIteration:
             pass
 
-        # scale the total into a percentage of image change between 0 and 100.
-        return 100.0 * diffAmt / (curImage[0] * curImage[1] * 3.0)
+        # Scale the total into a ranking of image change between 0 and 1,000,000.
+        return 1000000.0 * diffAmt / (curImage[0] * curImage[1] * 3.0)
+
+
+    # Main worker of camera capturing and detection logic.
+    def pollCamera(self, cam):
+
+        # capture an image from the remote camera.
+        response = urlfetch.fetch(cam.url, payload=None, method=urlfetch.GET, headers={}, allow_truncated=False, follow_redirects=True, deadline=5)
+        capture_time = datetime.now()
+
+        # TODO: check status code and content-type, handle exceptions
+        #if response.status_code != 200:
+
+        # store the full frame in memcache.
+        memcache.set("camera{%s}.lastimg_orig" % cam.key(), response.content)
+
+
+        # retrieve the processed version of the last frame.
+        lastimg_mopng = memcache.get("camera{%s}.lastimg_mopng" % cam.key())
+        if lastimg_mopng != None:
+            lastfloatdata = png.Reader(bytes=lastimg_mopng).asFloat()
+        else:
+            lastfloatdata = None
+
+
+        # Process the new frame for motion detection by adjusting constrast, 
+        # resizing to a very small thumbnail, converting to PNG, and then
+        # obtaining raw pixel data from the PNG using pypng.
+        img = images.Image(image_data=response.content)
+        img.im_feeling_lucky()
+        img.resize(width=MODETECT_IMAGE_SIZE, height=MODETECT_IMAGE_SIZE)
+        mopng = img.execute_transforms(output_encoding=images.PNG)
+        memcache.set("camera{%s}.lastimg_mopng" % cam.key(), mopng)
+        floatdata = png.Reader(bytes=mopng).asFloat()
+
+
+        # compute the frame difference between lastfloatdata & floatdata
+        motion_amt_change = self.detectMotion(lastfloatdata, floatdata)
+
+
+        # compute an exponentially-weighted moving average (EWMA).
+        ewma = memcache.get("camera{%s}.ewma" % cam.key())
+        if ewma != None:
+            ewma = MODETECT_EWMA_ALPHA * motion_amt_change + (1.0 - MODETECT_EWMA_ALPHA) * ewma
+        else:
+            ewma = motion_amt_change
+        memcache.set("camera{%s}.ewma" % cam.key(), ewma)
+
+
+        # use the EWMA to compute a score of the motion.
+        if ewma != 0 and motion_amt_change != 0:
+            motion_rating = abs(100.0 * (motion_amt_change - ewma) / ewma)
+        else:
+            motion_rating = 0
+
+        self.response.out.write("amt_change = %f, ewma = %f, motion_rating = %f\n" % (motion_amt_change, ewma, motion_rating))
+        
+        # clamp the maximum range, and ensure it is an integer.
+        if motion_rating > 100.0:
+            motion_rating = 100
+        else:
+            motion_rating = int(round(motion_rating))
+
+        # make a boolean decision about whether there is motion or not.
+        # TODO: this should use a user-controlled setting in the CameraSource
+        motion_found = (motion_rating > MODETECT_THRESHOLD)
+
+
+        # add to an existing event if needed
+        eventkey = memcache.get("camera{%s}.eventkey" % cam.key())
+        if eventkey == "trigger":
+            motion_found = True
+            eventkey = None
+
+        if eventkey is not None:
+            #
+            # An existing event was found, so just add this frame to it.
+            #
+            event = CameraEvent.get(db.Key(eventkey))
+
+            # store frame in the database
+            frame = CameraFrame(camera_id = cam.key(),
+                                event_id = event.key(),
+                                full_size_image = response.content,
+                                image_time = capture_time,
+                                alarmed = motion_found,
+                                motion_rating = motion_rating)
+            frame.put()
+
+            # update the event in the database
+            if motion_rating > event.max_motion_rating:
+                event.max_motion_rating = motion_rating
+
+            event.total_frames = event.total_frames + 1
+            event.total_motion_rating = event.total_motion_rating + motion_rating
+            event.avg_motion_rating = event.total_motion_rating / event.total_frames
+
+            event.event_end = capture_time
+            if motion_found:
+                event.alarm_frames = event.alarm_frames + 1
+                event.last_motion_time = capture_time
+
+            event.put()
+
+            # stop the event, if it's time
+            td = (capture_time - event.last_motion_time)
+            total_seconds = (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 10**6
+            if (not motion_found) and (total_seconds > cam.num_secs_after):
+                memcache.delete("camera{%s}.eventkey" % cam.key())
+
+        elif motion_found:
+            #
+            # No existing event found, so start a new event.
+            #
+            event = CameraEvent(total_frames = 1,
+                                alarm_frames = 1,
+                                event_start = capture_time,
+                                event_end = capture_time,
+                                max_motion_rating = motion_rating,
+                                total_motion_rating = motion_rating,
+                                avg_motion_rating = motion_rating,
+                                last_motion_time = capture_time,
+                                camera_id = cam.key(),
+                                viewed = False,
+                                archived = False,
+                                deleted = False)
+            event.put()
+
+            # store frame in the database
+            frame = CameraFrame(camera_id = cam.key(),
+                                event_id = event.key(),
+                                full_size_image = response.content,
+                                image_time = capture_time,
+                                alarmed = motion_found,
+                                motion_rating = motion_rating)
+            frame.put()
+
+            # keep the event open.
+            memcache.set("camera{%s}.eventkey" % cam.key(), str(event.key()))
 
 
     def get(self):
         self.response.headers['Content-Type'] = 'text/plain'
 
+        # iterate through all cameras, capturing an image and detecting motion.
         q = CameraSource.all()
         q.filter("enabled =",True).filter("deleted =",False)
 
-        # TODO: needs to keep looping for about a minute, honoring the poll_max_fps
+        # TODO: needs to keep looping for about up to 30 seconds, honoring the poll_max_fps
         for cam in q.fetch(MAX_CAMERAS):
-            response = urlfetch.fetch(cam.url, payload=None, method=urlfetch.GET, headers={}, allow_truncated=False, follow_redirects=True, deadline=5)
-            capture_time = datetime.now()
-
-            # TODO: check status code and content-type, handle exceptions
-            #if response.status_code != 200:
-
-            # store the fully image in memcache
-            memcache.set("camera{%s}.lastimg_orig" % cam.key(), response.content)
-
-
-            # retrieve the last background image
-            lastimg_mopng = memcache.get("camera{%s}.lastimg_mopng" % cam.key())
-            if lastimg_mopng != None:
-                lastfloatdata = png.Reader(bytes=lastimg_mopng).asFloat()
-            else:
-                lastfloatdata = None
-
-
-            # process the new image for motion detection
-            img = images.Image(image_data=response.content)
-            img.resize(width=MODETECT_IMAGE_SIZE, height=MODETECT_IMAGE_SIZE)
-            img.im_feeling_lucky()
-            mopng = img.execute_transforms(output_encoding=images.PNG)
-            memcache.set("camera{%s}.lastimg_mopng" % cam.key(), mopng)
-            floatdata = png.Reader(bytes=mopng).asFloat()
-
-
-            # compute the image difference between lastfloatdata & floatdata
-            motion_pct_change = self.detectMotion(lastfloatdata, floatdata)
-
-
-            # compute an exponentially-weighted moving average (EWMA).
-            ewma = memcache.get("camera{%s}.ewma" % cam.key())
-            if ewma != None:
-                ewma = MODETECT_EWMA_ALPHA * motion_pct_change + (1.0 - MODETECT_EWMA_ALPHA) * ewma
-            else:
-                ewma = motion_pct_change
-            memcache.set("camera{%s}.ewma" % cam.key(), ewma)
-
-
-            # use the EWMA to compute a score of the motion.
-            if ewma != 0 and motion_pct_change != 0:
-                motion_rating = abs(100.0 * (motion_pct_change - ewma) / ewma)
-            else:
-                motion_rating = 0
-
-            self.response.out.write("pct_change = %f, ewma = %f, motion_rating = %f\n" % (motion_pct_change, ewma, motion_rating))
-            if motion_rating > 100.0:
-                motion_rating = 100
-            else:
-                motion_rating = int(round(motion_rating))
-
-            # TODO: this should use a user-controlled setting in the CameraSource
-            motion_found = (motion_rating > MODETECT_THRESHOLD)
-
-
-            # add to an existing event if needed
-            eventkey = memcache.get("camera{%s}.eventkey" % cam.key())
-            if eventkey == "trigger":
-                motion_found = True
-                eventkey = None
-
-            if eventkey is not None:
-                event = CameraEvent.get(db.Key(eventkey))
-
-                # store frame in the database
-                frame = CameraFrame(camera_id = cam.key(),
-                                    event_id = event.key(),
-                                    full_size_image = response.content,
-                                    image_time = capture_time)
-                frame.put()
-
-                # update the event in the database
-                if motion_rating > event.motion_rating:
-                    event.motion_rating = motion_rating
-                if motion_found:
-                    event.last_motion_time = capture_time
-                event.total_frames = event.total_frames + 1
-                event.event_end = capture_time
-                event.put()
-
-                # stop the event, if it's time
-                td = (capture_time - event.last_motion_time)
-                total_seconds = (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 10**6
-                if (not motion_found) and (total_seconds > cam.num_secs_after):
-                    memcache.delete("camera{%s}.eventkey" % cam.key())
-            elif motion_found:
-                # start a new event
-                event = CameraEvent(total_frames = 1,
-                                    event_start = capture_time,
-                                    event_end = capture_time,
-                                    motion_rating = motion_rating,
-                                    last_motion_time = capture_time,
-                                    camera_id = cam.key(),
-                                    viewed = False,
-                                    archived = False,
-                                    deleted = False)
-                event.put()
-
-                # store frame in the database
-                frame = CameraFrame(camera_id = cam.key(),
-                                    event_id = event.key(),
-                                    full_size_image = response.content,
-                                    image_time = capture_time)
-                frame.put()
-
-                # keep the event open.
-                memcache.set("camera{%s}.eventkey" % cam.key(), str(event.key()))
-
+            self.pollCamera(cam)
 
 
         self.response.out.write("done")

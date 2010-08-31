@@ -26,8 +26,8 @@
     {% for event in eventlist %}
     <tr class="{% cycle odd,even %}">
         <td>{{ event.event_start|escape }}</td>
-        <td>{{ event.duration_text }} ({{ event.total_frames }} frame{{ event.total_frames|pluralize }})</td>
-        <td>{{ event.motion_rating }}</td>
+        <td>{{ event.duration_text }} ({{ event.alarm_frames }} of {{ event.total_frames }} frame{{ event.total_frames|pluralize }})</td>
+        <td>{{ event.total_motion_rating}} ({{ event.avg_motion_rating }} avg, {{ event.max_motion_rating }} max)</td>
         <td>....</td>
         <td>{{ event.comments|escape }}</td>
         <td><a href='/events/imgseq?event={{ event.key }}'>[Images]</a> 
