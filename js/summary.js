@@ -23,8 +23,12 @@ $(function() {
     function checkLength(o,n,min,max) {
 
         if ( o.val().length > max || o.val().length < min ) {
+            // display the error message in the tip area.
             o.addClass('ui-state-error');
             updateTips("Length of " + n + " must be between "+min+" and "+max+".");
+
+            // focus the tab containing the offending input element.
+            $("#dialog-tabs").tabs("select", o.closest('.ui-tabs-panel').attr('id'));
             return false;
         } else {
             return true;
@@ -35,8 +39,12 @@ $(function() {
     function checkRegexp(o,regexp,n) {
 
         if ( !( regexp.test( o.val() ) ) ) {
+            // display the error message in the tip area.
             o.addClass('ui-state-error');
             updateTips(n);
+
+            // focus the tab containing the offending input element.
+            $("#dialog-tabs").tabs("select", o.closest('.ui-tabs-panel').attr('id'));
             return false;
         } else {
             return true;
@@ -48,7 +56,11 @@ $(function() {
         alert('error in: ' + settings.url + ' \n'+'error:\n' + xhr.responseText );
         // TODO: re-enable disabled button?
     }); 
-        
+    
+    // initialize the tabs.
+    $("#dialog-tabs").tabs();
+
+    // initialize the dialog box and install the event handlers.
     $("#dialog-form").dialog({
         autoOpen: false,
         height: 400,
@@ -112,18 +124,26 @@ $(function() {
         }
     });
         
-        
-        
+    // install the handler that opens the "add" dialog.
     $('#add_camera_button')
-        .click(function() {
+        .click(function() {            
+            // wipe the tip area.
+            tips.text('\u00A0');     // nbsp
+
+            // focus the first tab.
+            $("#dialog-tabs").tabs("select", 0);
+
+            // wipe the hidden input, to ensure a new record is created.
             cam_key.val('');
+
+            // run the dialog.
             $('#dialog-form')
                 .dialog('option', 'title', 'Add new camera source')
                 .dialog("enable")
                 .dialog('open');
         });
 
-
+    // initialize the dialog and install the event handlers.
     $("#dialog-confirm").dialog({
         autoOpen: false,
         resizable: false,
@@ -153,7 +173,16 @@ $(function() {
 });
 
 function editCameraButton(camkey) {
+    // wipe the tip area.
+    $(".validateTips").text('\u00A0');     // nbsp
+
+    // focus the first tab.
+    $("#dialog-tabs").tabs("select", 0);
+
+    // update the hidden element to store the object being edited.
     $('#cam_key').val(camkey);
+
+    // fetch the current object values then run the dialog.
     $.post("/camera/edit", 
             { camera: camkey, cmd: 'get' },
             function(data) {
@@ -161,6 +190,8 @@ function editCameraButton(camkey) {
                     alert("Unexpected server response.");
                     return;
                 }
+
+                // update the form to show the current object values.
                 $('#cam_name').val(data.name);
                 $('#cam_url').val(data.url);
                 $('#cam_enabled').attr('checked', data.enabled != 0);
@@ -168,6 +199,7 @@ function editCameraButton(camkey) {
                 $('#cam_alert_max_fps').val(data.alert_max_fps);
                 $('#cam_num_secs_after').val(data.num_secs_after);
 
+                // run the dialog.
                 $("#dialog-form")
                     .dialog('option', 'title', 'Edit camera source')
                     .dialog("enable")

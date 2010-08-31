@@ -54,40 +54,47 @@
 
 
 <div id="dialog-form" title="Untitled dialog"><!-- Dialog used for New Camera and Edit Camera -->
-	<p class="validateTips">All form fields are required.</p>
+	<p class="validateTips">&nbsp;</p>
 	<form><center>
     <input type="hidden" name="cam_key" id="cam_key" value="" />
-	<fieldset><legend>Basic information</legend>
-        <table>
-        <tr>
-            <th><label for="cam_name">Name:</label></th>
-		    <td><input type="text" name="cam_name" id="cam_name" class="ui-widget-content ui-corner-all" /></td>
-        </tr>
-	    <tr>
-            <th><label for="cam_url">Source URL:</label></th>
-		    <td><input type="text" name="cam_url" id="cam_url" class="ui-widget-content ui-corner-all" size="40" /></td>
-        </tr>
-        <tr>
-            <th><input type="checkbox" name="cam_enabled" id="cam_enabled" class="ui-widget-content ui-corner-all" /><label for="cam_enabled">Enabled</label></th>
-        </tr>
-        </table>
-    </fieldset>
-    <fieldset><legend>Performance tuning</legend>
-        <table>
-	    <tr>
-            <th><label for="cam_poll_max_fps">Maximum Frame Rate (normal polling):</label></th>
-		    <td><input type="text" name="cam_poll_max_fps" id="cam_poll_max_fps" class="ui-widget-content ui-corner-all" size="5" /> fps</td>
-        </tr>
-	    <tr>
-            <th><label for="cam_alert_max_fps">Maximum Frame Rate (alert polling):</label></th>
-		    <td><input type="text" name="cam_alert_max_fps" id="cam_alert_max_fps" class="ui-widget-content ui-corner-all" size="5" /> fps</td>
-        </tr>
-	    <tr>
-            <th><label for="cam_num_secs_after">Event duration after alert:</label></th>
-		    <td><input type="text" name="cam_num_secs_after" id="cam_num_secs_after" value="" class="ui-widget-content ui-corner-all" size="5" /> secs</td>
-        </tr>
-        </table>
-	</fieldset></center>
+
+    <div id="dialog-tabs">
+	    <ul>
+		    <li><a href="#dialog-tabs-1">Basic information</a></li>
+		    <li><a href="#dialog-tabs-2">Performance tuning</a></li>
+	    </ul>
+	    <div id="dialog-tabs-1">
+            <table>
+            <tr>
+                <th><label for="cam_name">Name:</label></th>
+		        <td><input type="text" name="cam_name" id="cam_name" class="ui-widget-content ui-corner-all" /></td>
+            </tr>
+	        <tr>
+                <th><label for="cam_url">Source URL:</label></th>
+		        <td><input type="text" name="cam_url" id="cam_url" class="ui-widget-content ui-corner-all" size="40" /></td>
+            </tr>
+            <tr>
+                <th><input type="checkbox" name="cam_enabled" id="cam_enabled" class="ui-widget-content ui-corner-all" /><label for="cam_enabled">Enabled</label></th>
+            </tr>
+            </table>
+	    </div>
+	    <div id="dialog-tabs-2">
+            <table>
+	        <tr>
+                <th><label for="cam_poll_max_fps">Maximum Frame Rate (normal polling):</label></th>
+		        <td><input type="text" name="cam_poll_max_fps" id="cam_poll_max_fps" class="ui-widget-content ui-corner-all" size="5" /> fps</td>
+            </tr>
+	        <tr>
+                <th><label for="cam_alert_max_fps">Maximum Frame Rate (alert polling):</label></th>
+		        <td><input type="text" name="cam_alert_max_fps" id="cam_alert_max_fps" class="ui-widget-content ui-corner-all" size="5" /> fps</td>
+            </tr>
+	        <tr>
+                <th><label for="cam_num_secs_after">Event duration after alert:</label></th>
+		        <td><input type="text" name="cam_num_secs_after" id="cam_num_secs_after" value="" class="ui-widget-content ui-corner-all" size="5" /> secs</td>
+            </tr>
+            </table>
+	    </div>
+    </div>
 	</form>
 </div>
 
