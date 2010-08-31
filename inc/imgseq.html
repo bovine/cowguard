@@ -20,8 +20,9 @@ function animateNextFrame () {
     nextFrame = (nextFrame + 1) % numFrames;
 }
 
+var animTimer = 0;
 if (numFrames > 0) {
-    setInterval("animateNextFrame()", 500);
+    animTimer = setInterval("animateNextFrame()", 500);
 }
 
 $(function() {
@@ -31,10 +32,14 @@ $(function() {
 function handle_back_button() {
     //document.location = "";
     //location.replace("xxx");
+    // TODO: if the previous location is not what we expect, then go to the intended URL.
     history.go(-1);
 }
 
 function handle_delete_button(eventkey) {
+    if (animTimer != 0) {
+        clearInterval(animTimer);
+    }
     $.post('/events/delete', { event: eventkey }, function(data) { 
         alert(data); 
         //location.reload(); 
