@@ -33,7 +33,7 @@ MODETECT_THRESHOLD = 50
 # This is the background handler that gets invoked to poll images for motion.
 class ImageFetcherTask(webapp.RequestHandler):
 
-    # Low-level helper used to compare two image arrays and return a floating-point 
+    # Low-level helper used to compare two image arrays and return a floating-point
     # value representing the amount of motion found.  The actual numeric range returned
     # here is not really important, since the relative change between different values
     # will be scaled and then compared against the threshold setting.
@@ -89,7 +89,7 @@ class ImageFetcherTask(webapp.RequestHandler):
             lastfloatdata = None
 
 
-        # Process the new frame for motion detection by adjusting constrast, 
+        # Process the new frame for motion detection by adjusting constrast,
         # resizing to a very small thumbnail, converting to PNG, and then
         # obtaining raw pixel data from the PNG using pypng.
         img = images.Image(image_data=response.content)
@@ -120,7 +120,7 @@ class ImageFetcherTask(webapp.RequestHandler):
             motion_rating = 0
 
         self.response.out.write("amt_change = %f, ewma = %f, motion_rating = %f\n" % (motion_amt_change, ewma, motion_rating))
-        
+
         # clamp the maximum range, and ensure it is an integer.
         if motion_rating > 100.0:
             motion_rating = 100
@@ -364,7 +364,7 @@ class GarbageCollectorTask(webapp.RequestHandler):
 
         self.response.headers['Content-Type'] = 'text/plain'
         self.response.out.write("Deleted %d objects." % numDeleted)
-        
+
 # ----------------------------------------------------------------------
 
 
@@ -381,15 +381,15 @@ class BrowseEventsHandler(webapp.RequestHandler):
         q2 = CameraEvent.all()
         q2.filter("camera_id =", cam.key()).filter("deleted =", False).order("-event_start")
         if period == "today":
-            q2.filter("event_start >=", datetime.now().replace(hour=0,minute=0)) 
+            q2.filter("event_start >=", datetime.now().replace(hour=0,minute=0))
         elif period == "yesterday":
             q2.filter("event_start >=", datetime.now().replace(hour=0,minute=0) - timedelta(days=1))
             q2.filter("event_start <", datetime.now().replace(hour=0,minute=0))
         elif period == "week":
             startofweek = datetime.now().day - datetime.now().weekday() % 7
-            q2.filter("event_start >=", datetime.now().replace(day=startofweek, hour=0, minute=0)) 
+            q2.filter("event_start >=", datetime.now().replace(day=startofweek, hour=0, minute=0))
         elif period == "month":
-            q2.filter("event_start >=", datetime.now().replace(day=1,hour=0,minute=0)) 
+            q2.filter("event_start >=", datetime.now().replace(day=1,hour=0,minute=0))
         elif period == "all":
             pass
         else:
@@ -413,7 +413,7 @@ class BrowseEventsHandler(webapp.RequestHandler):
         path = os.path.join(os.path.dirname(__file__), 'inc/browse.html')
         self.response.out.write(template.render(path, template_values))
 
-        
+
 # ----------------------------------------------------------------------
 
 
@@ -432,26 +432,26 @@ class MainSummaryHandler(webapp.RequestHandler):
 
 
             # TODO: deleted frames should not be included in these counts.
-            qf = CameraFrame.all()            
+            qf = CameraFrame.all()
             qf.filter("camera_id =", cam.key())
             qe = CameraEvent.all()
             qe.filter("deleted =", False).filter("camera_id =", cam.key())
             cam.ftotal = qf.count()
             cam.etotal = qe.count()
 
-            qf.filter("image_time >=", datetime.now().replace(day=1,hour=0,minute=0)) 
-            qe.filter("event_start >=", datetime.now().replace(day=1,hour=0,minute=0)) 
+            qf.filter("image_time >=", datetime.now().replace(day=1,hour=0,minute=0))
+            qe.filter("event_start >=", datetime.now().replace(day=1,hour=0,minute=0))
             cam.fthismonth = qf.count()
             cam.ethismonth = qe.count()
 
             startofweek = datetime.now().day - datetime.now().weekday() % 7
-            qf.filter("image_time >=", datetime.now().replace(day=startofweek, hour=0, minute=0)) 
-            qe.filter("event_start >=", datetime.now().replace(day=startofweek, hour=0, minute=0)) 
+            qf.filter("image_time >=", datetime.now().replace(day=startofweek, hour=0, minute=0))
+            qe.filter("event_start >=", datetime.now().replace(day=startofweek, hour=0, minute=0))
             cam.fthisweek = qf.count()
             cam.ethisweek = qe.count()
 
-            qf.filter("image_time >=", datetime.now().replace(hour=0,minute=0)) 
-            qe.filter("event_start >=", datetime.now().replace(hour=0,minute=0)) 
+            qf.filter("image_time >=", datetime.now().replace(hour=0,minute=0))
+            qe.filter("event_start >=", datetime.now().replace(hour=0,minute=0))
             cam.ftoday = qf.count()
             cam.etoday = qe.count()
 
@@ -498,7 +498,7 @@ class LiveThumbHandler(webapp.RequestHandler):
 
             self.response.headers['Content-Type'] = 'image/jpeg'
             self.response.out.write(thumbnail)
-        else:            
+        else:
             self.error(404)
             self.response.out.write("not found")
             return
