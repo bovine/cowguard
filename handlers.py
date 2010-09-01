@@ -416,15 +416,17 @@ class BrowseEventsHandler(webapp.RequestHandler):
         q2 = CameraEvent.all()
         q2.filter("camera_id =", cam.key()).filter("deleted =", False).order("-event_start")
         if period == "today":
-            q2.filter("event_start >=", datetime.now().replace(hour=0,minute=0))
+            q2.filter("event_start >=", datetime.now().replace(hour=0,minute=0,second=0))
         elif period == "yesterday":
-            q2.filter("event_start >=", datetime.now().replace(hour=0,minute=0) - timedelta(days=1))
-            q2.filter("event_start <", datetime.now().replace(hour=0,minute=0))
+            q2.filter("event_start >=", datetime.now().replace(hour=0,minute=0,second=0) - timedelta(days=1))
+            q2.filter("event_start <", datetime.now().replace(hour=0,minute=0,second=0))
         elif period == "week":
-            startofweek = datetime.now().day - datetime.now().weekday() % 7
-            q2.filter("event_start >=", datetime.now().replace(day=startofweek, hour=0, minute=0))
+            startofweek = datetime.now().replace(hour=0, minute=0, second=0) - timedelta(days=datetime.now().isoweekday() % 7)
+            q2.filter("event_start >=", startofweek)
         elif period == "month":
-            q2.filter("event_start >=", datetime.now().replace(day=1,hour=0,minute=0))
+            #startofmonth = datetime.now().replace(day=1,hour=0,minute=0,second=0)
+            startofmonth = datetime.now().replace(hour=0, minute=0, second=0) - timedelta(days=30)
+            q2.filter("event_start >=", startofmonth)
         elif period == "all":
             pass
         else:
@@ -459,6 +461,11 @@ class MainSummaryHandler(webapp.RequestHandler):
         q.filter("deleted =", False).order("-creation_time")
 
         results = q.fetch(MAX_CAMERAS)
+        startofweek = datetime.now().replace(hour=0, minute=0, second=0) - timedelta(days=datetime.now().isoweekday() % 7)
+        #startofmonth = datetime.now().replace(day=1,hour=0,minute=0,second=0)
+        startofmonth = datetime.now().replace(hour=0, minute=0, second=0) - timedelta(days=30)
+        startofyesterday = datetime.now().replace(hour=0,minute=0,second=0) - timedelta(days=1)
+        startoftoday = datetime.now().replace(hour=0,minute=0,second=0)
 
         for cam in results:
 
@@ -474,31 +481,30 @@ class MainSummaryHandler(webapp.RequestHandler):
             cam.ftotal = qf.count()
             cam.etotal = qe.count()
 
-            qf.filter("image_time >=", datetime.now().replace(day=1,hour=0,minute=0))
-            qe.filter("event_start >=", datetime.now().replace(day=1,hour=0,minute=0))
+            qf.filter("image_time >=", startofmonth)
+            qe.filter("event_start >=", startofmonth)
             cam.fthismonth = qf.count()
             cam.ethismonth = qe.count()
 
-            startofweek = datetime.now().day - datetime.now().weekday() % 7
-            qf.filter("image_time >=", datetime.now().replace(day=startofweek, hour=0, minute=0))
-            qe.filter("event_start >=", datetime.now().replace(day=startofweek, hour=0, minute=0))
+            qf.filter("image_time >=", startofweek)
+            qe.filter("event_start >=", startofweek)
             cam.fthisweek = qf.count()
             cam.ethisweek = qe.count()
 
-            qf.filter("image_time >=", datetime.now().replace(hour=0,minute=0))
-            qe.filter("event_start >=", datetime.now().replace(hour=0,minute=0))
+            qf.filter("image_time >=", startoftoday)
+            qe.filter("event_start >=", startoftoday)
             cam.ftoday = qf.count()
             cam.etoday = qe.count()
 
             qf = CameraFrame.all()
             qf.filter("camera_id =", cam.key())
-            qf.filter("image_time >=", datetime.now().replace(hour=0,minute=0) - timedelta(days=1))
-            qf.filter("image_time <", datetime.now().replace(hour=0,minute=0))
+            qf.filter("image_time >=", startofyesterday)
+            qf.filter("image_time <", startoftoday)
             qe = CameraEvent.all()
             qe.filter("deleted =", False)
             qe.filter("camera_id =", cam.key())
-            qe.filter("event_start >=", datetime.now().replace(hour=0,minute=0) - timedelta(days=1))
-            qe.filter("event_start <", datetime.now().replace(hour=0,minute=0))
+            qe.filter("event_start >=", startofyesterday)
+            qe.filter("event_start <", startoftoday)
             cam.fyesterday = qf.count()
             cam.eyesterday = qe.count()
 
