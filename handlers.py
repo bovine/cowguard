@@ -6,7 +6,7 @@ from google.appengine.api import memcache, urlfetch, images, users
 from google.appengine.api.labs import taskqueue
 from google.appengine.runtime import DeadlineExceededError
 from datetime import datetime, timedelta
-import os, urllib, cgi, png
+import os, urllib, cgi, png, time
 from schema import CameraSource, CameraEvent, CameraFrame
 
 
@@ -27,8 +27,38 @@ MODETECT_THRESHOLD = 50
 
 # ----------------------------------------------------------------------
 
+# This is invoked periodically by cron
+class ImageWakeupTask(webapp.RequestHandler):
+    def get(self):
+        self.response.headers['Content-Type'] = 'text/plain'
+
+        # Look for any cameras that have not polled recently.
+        q = CameraSource.all()
+        q.filter("enabled =",True).filter("deleted =",False)
+        clocknow = datetime.now()
+        for cam in q.fetch(MAX_CAMERAS):
+            lastclock = memcache.get("camera{%s}.lastpoll_time" % cam.key())
+            if lastclock == None or (clocknow - lastclock) > timeinterval(minutes=5):
+                # Queue a task to re-start polling for this camera.
+                ImageFetcherTask.queueTask(cam.key())
+
+        self.response.out.write("done")
+
+
+# ----------------------------------------------------------------------
+
 # This is the background handler that gets invoked to poll images for motion.
 class ImageFetcherTask(webapp.RequestHandler):
+
+    # Queue a task to perform another camera poll.
+    @staticmethod
+    def queueTask(camkey):
+        taskqueue.add(queue_name="poll-source-queue",            
+                    url="/tasks/poll_sources",
+                    method="POST",
+                    params=dict(camera=camkey),
+                    transactional=False)
+
 
     # Low-level helper used to compare two image arrays and return a floating-point
     # value representing the amount of motion found.  The actual numeric range returned
@@ -65,7 +95,9 @@ class ImageFetcherTask(webapp.RequestHandler):
 
 
     # Main worker of camera capturing and detection logic.
+    # Returns True when in an alarmed event state.
     def pollCamera(self, cam):
+        memcache.set("camera{%s}.lastpoll_time" % cam.key(), datetime.now())
 
         # capture an image from the remote camera.
         request_headers = {}
@@ -83,6 +115,7 @@ class ImageFetcherTask(webapp.RequestHandler):
 
         # store the full frame in memcache.
         memcache.set("camera{%s}.lastimg_orig" % cam.key(), response.content)
+        memcache.set("camera{%s}.lastimg_time" % cam.key(), capture_time)
 
 
         # retrieve the processed version of the last frame.
@@ -177,6 +210,9 @@ class ImageFetcherTask(webapp.RequestHandler):
             total_seconds = (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 10**6
             if (not motion_found) and (total_seconds > cam.num_secs_after):
                 memcache.delete("camera{%s}.eventkey" % cam.key())
+                return False
+
+            return True
 
         elif motion_found:
             #
@@ -207,19 +243,69 @@ class ImageFetcherTask(webapp.RequestHandler):
 
             # keep the event open.
             memcache.set("camera{%s}.eventkey" % cam.key(), str(event.key()))
+            return True
+        else:
+            # No motion found and not currently in an event.
+            return False
+            
+            
+    # This is the callback invoked by the task queue.
+    def post(self):
+        self.response.headers['Content-Type'] = 'text/plain'
+        keyname = self.request.get('camera')
+        if keyname is not None:
+            # The requested camera was specified as a parameter, so poll just that one.
+            cam = CameraSource.get(db.Key(keyname))
 
+            # If disabled then stop processing and don't requeue a task.
+            if not cam.enabled:
+                self.response.out.write("disabled")
+                return
+            
+            lastimg_time = memcache.get("camera{%s}.lastimg_time" % cam.key())
+            alerted = memcache.get("camera{%s}.eventkey" % cam.key()) != None
 
+            
+            try:
+                # Loop until we hit the execution time limit.
+                while True:                    
+                    clockstart = datetime.now()
+                
+                    if lastimg_time == None:
+                        sleep_amt = 0.0
+                    elif alerted:
+                        td = (clockstart - lastimg_time)
+                        elapsed = (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 10**6
+                        sleep_amt = 1.0 / cam.alert_max_fps - elapsed
+                    else:
+                        td = (clockstart - lastimg_time)
+                        elapsed = (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 10**6
+                        sleep_amt = 1.0 / cam.poll_max_fps - elapsed
+
+                    if (sleep_amt > 0.0):
+                        time.sleep(sleep_amt)
+                        
+                    lastimg_time = datetime.now()
+                    alerted = self.pollCamera(cam)
+
+            except DeadlineExceededError:
+                # Time expired, so queue a task to start back up.
+                queueTask(cam.key())
+                    
+        self.response.out.write("done")
+
+    
+    # This is the debugging method used to capture one image from all cameras.
     def get(self):
         self.response.headers['Content-Type'] = 'text/plain'
 
-        # iterate through all cameras, capturing an image and detecting motion.
+        # Iterate through all cameras.
         q = CameraSource.all()
         q.filter("enabled =",True).filter("deleted =",False)
 
-        # TODO: needs to keep looping for about up to 30 seconds, honoring the poll_max_fps
+        # capturing an image and detect motion once for all cameras.
         for cam in q.fetch(MAX_CAMERAS):
             self.pollCamera(cam)
-
 
         self.response.out.write("done")
 
@@ -469,14 +555,23 @@ class MainSummaryHandler(webapp.RequestHandler):
 
         for cam in results:
 
-            cam.status_text = "---"
+            # Generate a human-readable status indicator.
             # TODO: cam.enabled, cam.last_poll_time, cam.last_poll_result
+            if not cam.enabled:
+                cam.status_text = "Disabled"
+            else:
+                lastimg_time = memcache.get("camera{%s}.lastimg_time" % cam.key())
+                if lastimg_time == None:
+                    cam.status_text = "Enabled, but not recently polled"
+                else:
+                    td = (datetime.now() - lastimg_time)
+                    cam.status_text = "Enabled, polled %s ago" % td
 
 
             # TODO: deleted frames should not be included in these counts.
-            qf = CameraFrame.all()
+            qf = CameraFrame.all(keys_only=True)
             qf.filter("camera_id =", cam.key())
-            qe = CameraEvent.all()
+            qe = CameraEvent.all(keys_only=True)
             qe.filter("deleted =", False).filter("camera_id =", cam.key())
             cam.ftotal = qf.count()
             cam.etotal = qe.count()
@@ -496,11 +591,11 @@ class MainSummaryHandler(webapp.RequestHandler):
             cam.ftoday = qf.count()
             cam.etoday = qe.count()
 
-            qf = CameraFrame.all()
+            qf = CameraFrame.all(keys_only=True)
             qf.filter("camera_id =", cam.key())
             qf.filter("image_time >=", startofyesterday)
             qf.filter("image_time <", startoftoday)
-            qe = CameraEvent.all()
+            qe = CameraEvent.all(keys_only=True)
             qe.filter("deleted =", False)
             qe.filter("camera_id =", cam.key())
             qe.filter("event_start >=", startofyesterday)

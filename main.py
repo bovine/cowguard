@@ -24,6 +24,7 @@ def main():
                                           #('/events/mjpeg', handlers.GetMjpegEventHandler),
                                           ('/events/imgseq', handlers.GetImgSeqEventHandler),
                                           ('/tasks/poll_sources', handlers.ImageFetcherTask),
+                                          ('/tasks/wakeup_sources', handlers.ImageWakeupTask),
                                           ('/tasks/garbage_collector', handlers.GarbageCollectorTask) ],
                                          debug=True)
     util.run_wsgi_app(application)
