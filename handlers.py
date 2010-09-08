@@ -38,7 +38,7 @@ class ImageWakeupTask(webapp.RequestHandler):
         clocknow = datetime.now()
         for cam in q.fetch(MAX_CAMERAS):
             lastclock = memcache.get("camera{%s}.lastpoll_time" % cam.key())
-            if lastclock == None or (clocknow - lastclock) > timeinterval(minutes=5):
+            if lastclock == None or (clocknow - lastclock) > timedelta(minutes=5):
                 # Queue a task to re-start polling for this camera.
                 ImageFetcherTask.queueTask(cam.key())
 
@@ -52,19 +52,37 @@ class ImageFetcherTask(webapp.RequestHandler):
 
     # Queue a task to perform another camera poll.
     @staticmethod
-    def queueTask(camkey):
+    def queueTask(camkey, delay=0):
         taskqueue.add(queue_name="poll-source-queue",            
                     url="/tasks/poll_sources",
                     method="POST",
-                    params=dict(camera=camkey),
+                    countdown=delay,
+                    params=dict(camera=camkey, epoch=time.mktime(datetime.now().timetuple()) ),
                     transactional=False)
 
 
+    # low-level method to capture an image from the remote camera.
+    def captureImage(self, cam):
+        request_headers = {}
+        if cam.authuser and cam.authpass:
+            basic_auth = base64.encodestring('%s:%s' % (cam.authuser, cam.authpass))
+            request_headers["Authorization"] = 'Basic %s' % basic_auth
+            
+        response = urlfetch.fetch(cam.url, payload=None, method=urlfetch.GET, 
+                                  headers=request_headers, allow_truncated=False,
+                                  follow_redirects=True, deadline=5)
+
+        # TODO: check status code and content-type, handle exceptions
+        #if response.status_code != 200:
+        
+        return response    
+
+        
     # Low-level helper used to compare two image arrays and return a floating-point
     # value representing the amount of motion found.  The actual numeric range returned
     # here is not really important, since the relative change between different values
     # will be scaled and then compared against the threshold setting.
-    def detectMotion(self, prevImage, curImage):
+    def compareFrames(self, prevImage, curImage):
         # make sure both arguments are a 4-tuple and the images are the same size.
         # The 4 elements should be (width,height,pixels,info)
         if prevImage == None or curImage == None:
@@ -94,29 +112,9 @@ class ImageFetcherTask(webapp.RequestHandler):
         return 1000000.0 * diffAmt / (curImage[0] * curImage[1] * 3.0)
 
 
-    # Main worker of camera capturing and detection logic.
-    # Returns True when in an alarmed event state.
-    def pollCamera(self, cam):
-        memcache.set("camera{%s}.lastpoll_time" % cam.key(), datetime.now())
-
-        # capture an image from the remote camera.
-        request_headers = {}
-        if cam.authuser and cam.authpass:
-            basic_auth = base64.encodestring('%s:%s' % (cam.authuser, cam.authpass))
-            request_headers["Authorization"] = 'Basic %s' % basic_auth
-            
-        response = urlfetch.fetch(cam.url, payload=None, method=urlfetch.GET, 
-                                  headers=request_headers, allow_truncated=False,
-                                  follow_redirects=True, deadline=5)
-        capture_time = datetime.now()
-
-        # TODO: check status code and content-type, handle exceptions
-        #if response.status_code != 200:
-
-        # store the full frame in memcache.
-        memcache.set("camera{%s}.lastimg_orig" % cam.key(), response.content)
-        memcache.set("camera{%s}.lastimg_time" % cam.key(), capture_time)
-
+    # Medium-level helper used to make a boolean decision about whether there is 
+    # currently motion found in a newly captured image.
+    def detectMotion(self, cam, imgdata):
 
         # retrieve the processed version of the last frame.
         lastimg_mopng = memcache.get("camera{%s}.lastimg_mopng" % cam.key())
@@ -129,7 +127,7 @@ class ImageFetcherTask(webapp.RequestHandler):
         # Process the new frame for motion detection by adjusting constrast,
         # resizing to a very small thumbnail, converting to PNG, and then
         # obtaining raw pixel data from the PNG using pypng.
-        img = images.Image(image_data=response.content)
+        img = images.Image(image_data=imgdata)
         img.im_feeling_lucky()
         img.resize(width=MODETECT_IMAGE_SIZE, height=MODETECT_IMAGE_SIZE)
         mopng = img.execute_transforms(output_encoding=images.PNG)
@@ -138,7 +136,7 @@ class ImageFetcherTask(webapp.RequestHandler):
 
 
         # compute the frame difference between lastfloatdata & floatdata
-        motion_amt_change = self.detectMotion(lastfloatdata, floatdata)
+        motion_amt_change = self.compareFrames(lastfloatdata, floatdata)
 
 
         # compute an exponentially-weighted moving average (EWMA).
@@ -168,7 +166,25 @@ class ImageFetcherTask(webapp.RequestHandler):
         # TODO: this should use a user-controlled setting in the CameraSource
         motion_found = (motion_rating > MODETECT_THRESHOLD)
 
+        return motion_found
 
+
+    # Main worker of camera capturing and detection logic.
+    # Returns True when in an alarmed event state.
+    def pollCamera(self, cam):
+        memcache.set("camera{%s}.lastpoll_time" % cam.key(), datetime.now())
+
+        # capture an image from the remote camera.
+        response = self.captureImage(cam)
+        capture_time = datetime.now()
+        
+        # store the full frame in memcache.
+        memcache.set("camera{%s}.lastimg_orig" % cam.key(), response.content)
+        memcache.set("camera{%s}.lastimg_time" % cam.key(), capture_time)
+
+        # decide whether there is motion found.
+        motion_found = self.detectMotion(cam, response.content)
+        
         # add to an existing event if needed
         eventkey = memcache.get("camera{%s}.eventkey" % cam.key())
         if eventkey == "trigger":
@@ -252,6 +268,17 @@ class ImageFetcherTask(webapp.RequestHandler):
     # This is the callback invoked by the task queue.
     def post(self):
         self.response.headers['Content-Type'] = 'text/plain'
+
+        # ensure that this task isn't too old (in case this task got requeued).
+        epoch = self.request.get('epoch')
+        if epoch is None:
+            self.response.out.write("no epoch specified")
+            return
+        if (datetime.now() - datetime.fromtimestamp(float(epoch))) > timedelta(seconds=30):
+            self.response.out.write("task too old")
+            return
+            
+
         keyname = self.request.get('camera')
         if keyname is not None:
             # The requested camera was specified as a parameter, so poll just that one.
@@ -290,7 +317,7 @@ class ImageFetcherTask(webapp.RequestHandler):
 
             except DeadlineExceededError:
                 # Time expired, so queue a task to start back up.
-                queueTask(cam.key())
+                ImageFetcherTask.queueTask(cam.key())
                     
         self.response.out.write("done")
 
