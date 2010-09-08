@@ -6,7 +6,7 @@ from google.appengine.api import memcache, urlfetch, images, users
 from google.appengine.api.labs import taskqueue
 from google.appengine.runtime import DeadlineExceededError, apiproxy_errors
 from datetime import datetime, timedelta
-import os, urllib, cgi, png, time
+import os, urllib, cgi, png, time, base64
 from schema import CameraSource, CameraEvent, CameraFrame
 
 
