@@ -4,13 +4,13 @@ from google.appengine.ext import webapp, db
 from google.appengine.ext.webapp import util, template
 from google.appengine.api import memcache, urlfetch, images, users
 from google.appengine.api.labs import taskqueue
-from google.appengine.runtime import DeadlineExceededError
+from google.appengine.runtime import DeadlineExceededError, apiproxy_errors
 from datetime import datetime, timedelta
 import os, urllib, cgi, png, time
 from schema import CameraSource, CameraEvent, CameraFrame
 
 
-# maximum number of enabled camera supported.
+# maximum number of enabled cameras supported.
 MAX_CAMERAS = 10
 
 # image size (pixels) that all motion-detection images are scaled to.
@@ -24,10 +24,14 @@ MODETECT_EWMA_ALPHA = 0.25
 # greater amounts of motion to trigger).
 MODETECT_THRESHOLD = 50
 
+# how many seconds to loop before exiting (should be less than 30 seconds
+# to avoid hitting the AppEngine execution limit).
+MODETECT_RUNTIME_LIMIT = 25
+
 
 # ----------------------------------------------------------------------
 
-# This is invoked periodically by cron
+# This is invoked periodically by cron.
 class ImageWakeupTask(webapp.RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/plain'
@@ -38,7 +42,7 @@ class ImageWakeupTask(webapp.RequestHandler):
         clocknow = datetime.now()
         for cam in q.fetch(MAX_CAMERAS):
             lastclock = memcache.get("camera{%s}.lastpoll_time" % cam.key())
-            if lastclock == None or (clocknow - lastclock) > timedelta(minutes=5):
+            if lastclock is None or (clocknow - lastclock) > timedelta(minutes=5):
                 # Queue a task to re-start polling for this camera.
                 ImageFetcherTask.queueTask(cam.key())
 
@@ -85,7 +89,7 @@ class ImageFetcherTask(webapp.RequestHandler):
     def compareFrames(self, prevImage, curImage):
         # make sure both arguments are a 4-tuple and the images are the same size.
         # The 4 elements should be (width,height,pixels,info)
-        if prevImage == None or curImage == None:
+        if prevImage is None or curImage is None:
             return 0.1
         elif len(prevImage) != 4 or len(curImage) != 4:
             return 0.2
@@ -118,7 +122,7 @@ class ImageFetcherTask(webapp.RequestHandler):
 
         # retrieve the processed version of the last frame.
         lastimg_mopng = memcache.get("camera{%s}.lastimg_mopng" % cam.key())
-        if lastimg_mopng != None:
+        if lastimg_mopng is not None:
             lastfloatdata = png.Reader(bytes=lastimg_mopng).asFloat()
         else:
             lastfloatdata = None
@@ -141,7 +145,7 @@ class ImageFetcherTask(webapp.RequestHandler):
 
         # compute an exponentially-weighted moving average (EWMA).
         ewma = memcache.get("camera{%s}.ewma" % cam.key())
-        if ewma != None:
+        if ewma is not None:
             ewma = MODETECT_EWMA_ALPHA * motion_amt_change + (1.0 - MODETECT_EWMA_ALPHA) * ewma
         else:
             ewma = motion_amt_change
@@ -172,6 +176,8 @@ class ImageFetcherTask(webapp.RequestHandler):
     # Main worker of camera capturing and detection logic.
     # Returns True when in an alarmed event state.
     def pollCamera(self, cam):
+        # update the last time we attempted to poll this camera.
+        # do this first in case we hit an exception while attempting to poll.
         memcache.set("camera{%s}.lastpoll_time" % cam.key(), datetime.now())
 
         # capture an image from the remote camera.
@@ -265,8 +271,9 @@ class ImageFetcherTask(webapp.RequestHandler):
             return False
             
             
-    # This is the callback invoked by the task queue.
+    # This is the callback invoked by the task queue to poll a single camera in a loop.
     def post(self):
+        proc_start_time = datetime.now()
         self.response.headers['Content-Type'] = 'text/plain'
 
         # ensure that this task isn't too old (in case this task got requeued).
@@ -274,7 +281,7 @@ class ImageFetcherTask(webapp.RequestHandler):
         if epoch is None:
             self.response.out.write("no epoch specified")
             return
-        if (datetime.now() - datetime.fromtimestamp(float(epoch))) > timedelta(seconds=30):
+        if (proc_start_time - datetime.fromtimestamp(float(epoch))) > timedelta(seconds=30):
             self.response.out.write("task too old")
             return
             
@@ -290,22 +297,26 @@ class ImageFetcherTask(webapp.RequestHandler):
                 return
             
             lastimg_time = memcache.get("camera{%s}.lastimg_time" % cam.key())
-            alerted = memcache.get("camera{%s}.eventkey" % cam.key()) != None
+            alerted = memcache.get("camera{%s}.eventkey" % cam.key()) is not None
 
             
             try:
                 # Loop until we hit the execution time limit.
                 while True:                    
-                    clockstart = datetime.now()
+                    loop_start_time = datetime.now()
+                    
+                    # Time will expire at 30 seconds, so stop if we're getting close.
+                    if (loop_start_time - proc_start_time) > timedelta(seconds=MODETECT_RUNTIME_LIMIT):
+                        break
                 
-                    if lastimg_time == None:
+                    if lastimg_time is None:
                         sleep_amt = 0.0
                     elif alerted:
-                        td = (clockstart - lastimg_time)
+                        td = (loop_start_time - lastimg_time)
                         elapsed = (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 10**6
                         sleep_amt = 1.0 / cam.alert_max_fps - elapsed
                     else:
-                        td = (clockstart - lastimg_time)
+                        td = (loop_start_time - lastimg_time)
                         elapsed = (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 10**6
                         sleep_amt = 1.0 / cam.poll_max_fps - elapsed
 
@@ -315,9 +326,13 @@ class ImageFetcherTask(webapp.RequestHandler):
                     lastimg_time = datetime.now()
                     alerted = self.pollCamera(cam)
 
-            except DeadlineExceededError:
-                # Time expired, so queue a task to start back up.
-                ImageFetcherTask.queueTask(cam.key())
+            except DeadlineExceededError, apiproxy_errors.DeadlineExceededError:
+                self.response.out.write("timeout hit, ignoring")
+
+                
+            # Time probably expired, so queue a task to start back up.            
+            # This may fail with CancelledError if we don't have time to do that.
+            ImageFetcherTask.queueTask(cam.key())
                     
         self.response.out.write("done")
 
@@ -588,7 +603,7 @@ class MainSummaryHandler(webapp.RequestHandler):
                 cam.status_text = "Disabled"
             else:
                 lastimg_time = memcache.get("camera{%s}.lastimg_time" % cam.key())
-                if lastimg_time == None:
+                if lastimg_time is None:
                     cam.status_text = "Enabled, but not recently polled"
                 else:
                     td = (datetime.now() - lastimg_time)
