@@ -163,7 +163,7 @@ tr.even td {
 	border-right: solid 1px white; 
 	font-size: 11px; 
 	color: #656565; 
-	font-weight: bold; 
+	/*font-weight: bold; */
 	padding: 5px 10px; 
 }
 	
@@ -171,8 +171,12 @@ tr.odd td {
 	background-color: #FFF; 
 	font-size: 11px; 
 	color: #656565; 
-	font-weight: bold; 
+	/*font-weight: bold; */
 	padding: 5px 10px;   
+}
+
+tr.unread td {
+    font-weight: bold !important;
 }
 
 #pageContent { 

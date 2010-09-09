@@ -5,3 +5,7 @@ function deleteEventButton(eventkey) {
         location.reload(); 
     });
 }
+
+function markEventRead(eventkey) {
+    $('#' + eventkey).removeClass('unread');
+}

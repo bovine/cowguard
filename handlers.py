@@ -706,6 +706,10 @@ class GetImgSeqEventHandler(webapp.RequestHandler):
             self.error(404)
             self.response.out.write("unknown event")
             return
+            
+        if not event.viewed:
+            event.viewed = True
+            event.put()
 
         q2 = CameraFrame.all()
         #q2.filter("event_id =", event.key()).order("image_time")

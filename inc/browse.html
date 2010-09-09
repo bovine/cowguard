@@ -24,13 +24,13 @@
 
     <tbody>
     {% for event in eventlist %}
-    <tr class="{% cycle odd,even %}">
+    <tr class="{% cycle odd,even %} {% if not event.viewed %}unread{% endif %}" id="{{ event.key }}">
         <td>{{ event.event_start|escape }}</td>
         <td>{{ event.duration_text }} ({{ event.alarm_frames }} of {{ event.total_frames }} frame{{ event.total_frames|pluralize }})</td>
         <td>{{ event.total_motion_rating}} ({{ event.avg_motion_rating }} avg, {{ event.max_motion_rating }} max)</td>
         <td>....</td>
         <td>{{ event.comments|escape }}</td>
-        <td><a href='/events/imgseq?event={{ event.key }}'>[Images]</a> 
+        <td><a href='/events/imgseq?event={{ event.key }}' onclick="markEventRead('{{ event.key }}'); return true;">[Images]</a> 
             <a href='/events/mjpeg?event={{ event.key }}' onclick="alert('unimplemented'); return false;">[MJPEG]</a> 
             <a href="javascript:deleteEventButton('{{ event.key }}')">[Delete]</a> 
             <a href='/events/archive?event={{ event.key }}' onclick="alert('unimplemented'); return false;">[Archive]</a></td>
