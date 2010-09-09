@@ -13,6 +13,9 @@ from schema import CameraSource, CameraEvent, CameraFrame
 # maximum number of enabled cameras supported.
 MAX_CAMERAS = 10
 
+# number of seconds before the timeout of a HTTP GET for the camera image.
+CAMFETCH_TIMEOUT = 10
+
 # image size (pixels) that all motion-detection images are scaled to.
 MODETECT_IMAGE_SIZE = 100
 
@@ -69,15 +72,21 @@ class ImageFetcherTask(webapp.RequestHandler):
     def captureImage(self, cam):
         request_headers = {}
         if cam.authuser and cam.authpass:
-            basic_auth = base64.encodestring('%s:%s' % (cam.authuser, cam.authpass))
+            basic_auth = base64.encodestring('%s:%s' % (cam.authuser, cam.authpass)).rstrip()
             request_headers["Authorization"] = 'Basic %s' % basic_auth
             
         response = urlfetch.fetch(cam.url, payload=None, method=urlfetch.GET, 
                                   headers=request_headers, allow_truncated=False,
-                                  follow_redirects=True, deadline=5)
+                                  follow_redirects=True, deadline=CAMFETCH_TIMEOUT)
 
-        # TODO: check status code and content-type, handle exceptions
-        #if response.status_code != 200:
+        if response.status_code != 200 or response.content_was_truncated:
+            self.response.out.write("Got unsuccessful response")
+            return None
+            
+        contentType = response.headers['Content-Type']
+        if contentType is None or not contentType.startswith('image/'):
+            self.response.out.write("Got wrong content-type")
+            return None
         
         return response    
 
@@ -170,7 +179,7 @@ class ImageFetcherTask(webapp.RequestHandler):
         # TODO: this should use a user-controlled setting in the CameraSource
         motion_found = (motion_rating > MODETECT_THRESHOLD)
 
-        return motion_found
+        return (motion_rating, motion_found)
 
 
     # Main worker of camera capturing and detection logic.
@@ -189,7 +198,7 @@ class ImageFetcherTask(webapp.RequestHandler):
         memcache.set("camera{%s}.lastimg_time" % cam.key(), capture_time)
 
         # decide whether there is motion found.
-        motion_found = self.detectMotion(cam, response.content)
+        (motion_rating, motion_found) = self.detectMotion(cam, response.content)
         
         # add to an existing event if needed
         eventkey = memcache.get("camera{%s}.eventkey" % cam.key())
