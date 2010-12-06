@@ -27,9 +27,9 @@ MODETECT_EWMA_ALPHA = 0.25
 # greater amounts of motion to trigger).
 MODETECT_THRESHOLD = 50
 
-# how many seconds to loop before exiting (should be less than 30 seconds
+# how many seconds to loop before exiting (should be less than 600 seconds
 # to avoid hitting the AppEngine execution limit).
-MODETECT_RUNTIME_LIMIT = 25
+MODETECT_RUNTIME_LIMIT = 595
 
 
 # ----------------------------------------------------------------------
@@ -192,6 +192,8 @@ class ImageFetcherTask(webapp.RequestHandler):
         # capture an image from the remote camera.
         response = self.captureImage(cam)
         capture_time = datetime.now()
+        if response is None:
+            return False
         
         # store the full frame in memcache.
         memcache.set("camera{%s}.lastimg_orig" % cam.key(), response.content)
