@@ -18,8 +18,6 @@ class CameraSource(db.Model):
     # TODO: frames before/after event
     num_secs_after = db.FloatProperty(default=2.0, required=True)
     # TODO: sensitivity
-    # TODO: last_poll_time, last_poll_result
-
 
 class CameraEvent(db.Model):
     camera_id = db.ReferenceProperty(CameraSource, required=True)
@@ -32,7 +30,7 @@ class CameraEvent(db.Model):
     alarm_frames = db.IntegerProperty(default=0)
     last_motion_time = db.DateTimeProperty()
     comments = db.StringProperty()
-    category = db.CategoryProperty()
+    #category = db.CategoryProperty()
     archived = db.BooleanProperty(default=False,required=True)
     deleted = db.BooleanProperty(default=False,required=True)
     viewed = db.BooleanProperty(default=False,required=True)
