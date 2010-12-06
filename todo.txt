@@ -2,6 +2,8 @@ Implement satellite mode and aggregation to allow camera polling below quotas.
 
 Add capture buffer to allow "seconds before event" and "alert frames required" support.
 
+Store last poll result/error in memcache and display in status column.
+
 
 Add prev/next paging controls to Event Browser page.
 
@@ -19,4 +21,10 @@ Implement MJPEG export functionality.
 Allow multi-selection and deletion of events.
 
 Add email notification of upon events.
+
+Use BlobReferenceProperty for image storage and picasa thumbnailing.
+
+Update event Viewed status and show in display differently.
+
+on hover, show tiny video previews using bgimage filmstrip style animation.
 
