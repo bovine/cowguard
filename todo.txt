@@ -1,3 +1,5 @@
+Use "Backend" feature for the persistent image capturing -- http://code.google.com/appengine/docs/python/backends/
+
 Implement satellite mode and aggregation to allow camera polling below quotas.
 
 Add capture buffer to allow "seconds before event" and "alert frames required" support.
@@ -26,5 +28,5 @@ Use BlobReferenceProperty for image storage and picasa thumbnailing.
 
 Update event Viewed status and show in display differently.
 
-on hover, show tiny video previews using bgimage filmstrip style animation.
+On hover, show tiny video previews using bgimage filmstrip style animation.
 
